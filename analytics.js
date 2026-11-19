@@ -4,8 +4,7 @@
 'use strict';
 const HL_COLOR='#00e5ff';
 const NAMA_KAT={'Planting':'Planting (tanam)','Stake Out':'Stake Out titik tanam','Lubang Tanam':'Lubang tanam','OFF Planting':'OFF Planting'};
-const KAT_WARNA={'Planting':'#ff4081','Stake Out':'#ffffff','Lubang Tanam':'#ff9100','OFF Planting':'#7c4dff'};
-const A={ready:false,fs:[],hl:null,hlLayer:null,tab:'tren',mode:'day',sort:{blok:{k:'no',d:1},tabel:{k:'Tanggal',d:1},tanam:{k:'no',d:1}},colorBlok:false,tnCat:'Planting',showBlokAll:false};
+const A={ready:false,fs:[],hl:null,hlLayer:null,tab:'ring',mode:'day',sort:{blok:{k:'no',d:1},tabel:{k:'Tanggal',d:1},tanam:{k:'no',d:1}},colorBlok:false,tnCat:'Planting',showBlokAll:false};
 window.Analytics=A;
 const $=id=>document.getElementById(id);
 const sum=(a,f)=>a.reduce((t,x)=>t+f(x),0);
@@ -18,7 +17,12 @@ const ha=m=>m&&m.length?areaM2(m)/1e4:0;
 function bboxM(m){let a=1e99,b=1e99,c=-1e99,d=-1e99;m.forEach(p=>p[0].forEach(([x,y])=>{if(x<a)a=x;if(x>c)c=x;if(y<b)b=y;if(y>d)d=y}));return[a,b,c,d]}
 const bbHit=(p,q)=>p[0]<=q[2]&&p[2]>=q[0]&&p[1]<=q[3]&&p[3]>=q[1];
 const clip=(op,...g)=>{try{return pc[op](...g)}catch(e){console.warn('polygon-clipping gagal',e);return[]}};
-const unionOf=a=>a.length===0?[]:a.length===1?a[0]:clip('union',...a);
+// union dengan cadangan: bila polygon-clipping gagal (segmen hampir berimpit, mis. potongan LC identik), gabungkan bertahap & pembulatan 1 cm
+const snapM=m=>m.map(p=>p.map(r=>{const o=[];r.forEach(([x,y])=>{const q=[Math.round(x*100)/100,Math.round(y*100)/100],l=o[o.length-1];if(!l||l[0]!==q[0]||l[1]!==q[1])o.push(q)});return o}).filter(r=>r.length>=4||r.length===0)).filter(p=>p.length&&p[0].length>=4);
+function unionOf(a){if(a.length===0)return[];if(a.length===1)return a[0];
+ try{return pc.union(...a)}catch(e){}
+ let acc=a[0];for(let i=1;i<a.length;i++){try{acc=pc.union(acc,a[i])}catch(e2){try{acc=pc.union(snapM(acc),snapM(a[i]))}catch(e3){console.warn('union LC dilewati (1 poligon)',e3.message)}}}
+ return acc}
 const pctS=n=>fmtN(n,1)+'%';
 const tglNum=s=>s?Date.parse(s+'T00:00:00Z'):NaN;
 function csv(rows,name){
@@ -31,10 +35,9 @@ const stamp=()=>{const d=new Date();return d.getFullYear()+String(d.getMonth()+1
 
 // ---------- Inisialisasi: proyeksi + irisan LC x Blok (sekali saja) ----------
 A.init=function(o){
- A.map=o.map;A.data=o.data;A.batasHa=o.batasHa;A.blokLayer=o.blokLayer;A.bl=o.bl;A.bk=o.bk;
+ A.map=o.map;A.data=o.data;A.batasHa=o.batasHa;A.blokLayer=o.blokLayer;A.bl=o.bl;A.bk=o.bkReal||o.bk;A.tg=o.bk;
  map.invalidateSize({pan:false});
  map.createPane('hlPane');map.getPane('hlPane').style.zIndex=450;map.getPane('hlPane').style.pointerEvents='none';
- map.createPane('tanamPane');map.getPane('tanamPane').style.zIndex=420;
  const t0=performance.now();
  A.batasM=o.bk?unionOf(o.bk.features.map(f=>toMulti(f.geometry))):[];
  A.batasM2=areaM2(A.batasM);
@@ -44,10 +47,6 @@ A.init=function(o){
  A.byId={};A.lcs.forEach(l=>{A.byId[l.id]=l;l.lcB=clip('intersection',l.M,A.batasM);
   A.blocks.forEach(b=>{if(!bbHit(l.bb,b.bb))return;const I=clip('intersection',l.M,b.M);if(areaM2(I)<0.5)return;l.inter[b.i]=I;l.interB[b.i]=clip('intersection',I,A.batasM)})});
  A.initMs=Math.round(performance.now()-t0);
- // layer titik tanam (lazy)
- A.tanamGroup=L.featureGroup();A.tanamLoaded=false;
- if(o.layersCtl)o.layersCtl.addOverlay(A.tanamGroup,'Titik Tanam (realisasi)');
- A.tanamGroup.on('add',()=>{loadTitik();legendTanam(true);syncTanamChk()});A.tanamGroup.on('remove',()=>{legendTanam(false);syncTanamChk()});
  Vault.getJSON('data/tanam_ringkas.json').then(j=>{A.tanam=j;if(A.tab==='tanam')renderTab()}).catch(e=>console.warn('ringkasan tanam gagal',e));
  A.ready=true;if(A.pending){A.update(A.pending);A.pending=null}
 };
@@ -76,8 +75,7 @@ function renderKPI(fs){
  const fsw=fs.filter(f=>{const p=f.properties;return p.Tanggal&&(p.Pengerjaan||p.Operator)});
  const days=new Set(fsw.map(f=>f.properties.Tanggal)),hari=days.size,luasW=sum(fsw,f=>f.properties.Luas),avg=hari?luasW/hari:0;
  A.kpi={hari,avg,luasW,sisa:A.tot.sisa};
- $('kAvg').textContent=hari?fmt(avg):'–';$('kHari').textContent=hari?fmtN(hari,0):'–';
- $('kSisa').textContent=fmt(A.tot.sisa);
+ if(window.fillKpi)window.fillKpi();
 }
 
 // ---------- Sorotan peta ----------
@@ -120,7 +118,7 @@ document.addEventListener('click',e=>{
 document.addEventListener('keydown',e=>{if((e.key==='Enter'||e.key===' ')&&e.target.matches&&e.target.matches('.bi[data-hl]')){e.preventDefault();hlAction(e.target.dataset.hl)}});
 
 // ---------- Dock & tab ----------
-const TABS={tren:renderTren,blok:renderBlok,prod:renderProd,tabel:renderTabel,tanam:renderTanam};
+const TABS=A.TABS={tren:renderTren,blok:renderBlok,prod:renderProd,tabel:renderTabel,tanam:renderTanam};
 function renderTab(){if(A.ready)(TABS[A.tab]||renderTren)();markSel()}
 function showTab(t){A.tab=t;document.querySelectorAll('.dock .tab, #dock .tab').forEach(b=>b.classList.toggle('on',b.dataset.tab===t));
  document.querySelectorAll('#dock .pane').forEach(p=>p.classList.toggle('on',p.id==='p-'+t));
@@ -150,13 +148,22 @@ function trendData(fs,mode){const g={};let nodate=0,nd=0;
  fs.forEach(f=>{const p=f.properties;if(!p.Tanggal){nodate+=p.Luas;nd++;return}const k=mode==='week'?weekStart(p.Tanggal):p.Tanggal;g[k]=(g[k]||0)+p.Luas});
  let c=0;return{pts:Object.keys(g).sort().map(k=>({k,add:g[k],cum:(c+=g[k])})),nodate,nd}}
 const niceStep=m=>{const p=Math.pow(10,Math.floor(Math.log10(m||1))),r=m/p;return(r<=1?1:r<=2?2:r<=2.5?2.5:r<=5?5:10)*p};
+function lcKpiHtml(){const c=(l,v,u,s)=>`<div class="ck"><span class="ck-l">${l}</span><span class="ck-v">${v}${u?`<small>${u}</small>`:''}</span>${s||''}</div>`;
+ return `<div class="lc-kpis" aria-label="Indikator Land Clearing (mengikuti filter)">`+
+  c('Total LC','<span id="kTot">–</span>','ha','<span class="ck-s" id="kTotS"></span>')+c('<span id="kOctL">LC bulan berjalan</span>','<span id="kOct">–</span>','ha','<span class="ck-s" id="kOctS"></span>')+
+  c('Luas target (Batas Kebun)','<span id="kBatas">–</span>','ha','<span class="ck-s">Target LC</span>')+c('% LC / target','<span id="kPct">–</span>','%','<div class="kpi-prog"><div id="kPctBar"></div></div>')+
+  c('Jumlah blok','<span id="kBlok">–</span>','blok','<span class="ck-s" id="kBlokS"></span>')+
+  c('Rata-rata ha/hari kerja <span class="tip" tabindex="0" data-tip="Total luas LC (poligon bertanggal yang punya data alat/operator) ÷ jumlah hari kerja. Poligon tanpa data alat/operator (mis. LC s/d 31 Agu 2026) tidak dihitung.">i</span>','<span id="kAvg">–</span>','ha/hari')+
+  c('Jumlah hari kerja <span class="tip" tabindex="0" data-tip="Jumlah tanggal berbeda (kolom Tanggal) pada poligon yang punya data alat/operator. Tanggal adalah tanggal rekap/pengukuran, sehingga ini perkiraan hari kerja.">i</span>','<span id="kHari">–</span>','hari')+
+  c('Sisa area belum LC <span class="tip" tabindex="0" data-tip="Luas target − luas gabungan (union, tanpa hitung ganda) poligon LC yang berada di dalam target. Dihitung di UTM 48S dari LC terfilter.">i</span>','<span id="kSisa">–</span>','ha')+`</div>`}
 function renderTren(){
  const pane=$('p-tren'),T=trendData(A.fs,A.mode);A.trend=T;
  const target=A.batasHa||0;
- pane.innerHTML=`<div class="two-col"><div class="card chart-card"><div class="card-h"><h4>Tren LC kumulatif vs target</h4><div class="seg" role="group" aria-label="Agregasi"><button data-m="day" class="${A.mode==='day'?'on':''}">Per tanggal</button><button data-m="week" class="${A.mode==='week'?'on':''}">Per minggu</button></div></div><div id="trendSvg" class="svgbox"></div>
- <div class="foot one">Target = Luas Batas Kebun (${fmt(target)} ha) — bukan target resmi.${T.nd?` Tanpa tanggal: ${T.nd} poligon, ${fmt(T.nodate)} ha (tidak digambar).`:''}</div></div>
+ pane.innerHTML=`${lcKpiHtml()}<div class="two-col"><div class="card chart-card"><div class="card-h"><h4>Tren LC kumulatif vs target</h4><div class="seg" role="group" aria-label="Agregasi"><button data-m="day" class="${A.mode==='day'?'on':''}">Per tanggal</button><button data-m="week" class="${A.mode==='week'?'on':''}">Per minggu</button></div></div><div id="trendSvg" class="svgbox"></div>
+ <div class="foot one">${(window.TARGET&&TARGET.label)||('Target = luas Batas Kebun DNP ('+fmt(target)+' ha)')}.${T.nd?` Tanpa tanggal: ${T.nd} poligon, ${fmt(T.nodate)} ha (tidak digambar).`:''}</div></div>
  <div class="card"><div class="card-h"><h4>Rincian ${A.mode==='week'?'mingguan':'per tanggal'}</h4></div><div class="tscroll"><table class="dt"><thead><tr><th>${A.mode==='week'?'Minggu':'Tanggal'}</th><th class="n">+ LC (ha)</th><th class="n">Kumulatif (ha)</th><th class="n">% Target</th></tr></thead><tbody>${
  T.pts.map(p=>`<tr data-hl="${A.mode}:${p.k}" tabindex="0"><td>${tgl(p.k)}</td><td class="n">${fmt(p.add)}</td><td class="n">${fmt(p.cum)}</td><td class="n">${target?pctS(p.cum/target*100):'–'}</td></tr>`).join('')||'<tr><td colspan="4" class="empty">Tidak ada data bertanggal</td></tr>'}</tbody></table></div></div></div>`;
+ if(window.fillKpi)window.fillKpi();
  pane.querySelectorAll('.seg button').forEach(b=>b.onclick=()=>{A.mode=b.dataset.m;renderTab()});
  pane.querySelectorAll('tr[data-hl]').forEach(r=>r.onkeydown=rowKeyHandler);
  const box=$('trendSvg'),W=Math.max(box.clientWidth,300),H=Math.max(box.clientHeight,150);
@@ -253,7 +260,7 @@ function bulanLbl(m){if(!m)return'Tanpa bulan';const[y,mm]=m.split('-');return B
 function renderTanam(){
  const pane=$('p-tanam'),B=blokTanam();
  if(!B){pane.innerHTML='<div class="empty" style="padding:16px">Memuat ringkasan realisasi tanam…</div>';return}
- const cols=[{k:'no',t:'Blok',num:true,h:r=>`<b>Blok ${r.no}</b>`}].concat(A.tanam.bulan.filter(m=>B.hasNo||m).filter(m=>B.rows.some(r=>r['m'+m])).map(m=>({k:'m'+m,t:bulanLbl(m),num:true,f:r=>r['m'+m]?fmtN(r['m'+m],0):'–'})),[{k:'tot',t:'Total',num:true,h:r=>`<b>${fmtN(r.tot,0)}</b>`},{k:'rencana',t:'Titik rencana*',num:true,f:r=>fmtN(r.rencana,0)}]);
+ const cols=[{k:'no',t:'Blok',num:true,h:r=>`<b>Blok ${r.no}</b>`}].concat(A.tanam.bulan.filter(m=>B.hasNo||m).filter(m=>B.rows.some(r=>r['m'+m])).map(m=>({k:'m'+m,t:bulanLbl(m),num:true,f:r=>r['m'+m]?fmtN(r['m'+m],0):'–'})),[{k:'tot',t:'Total',num:true,h:r=>`<b>${fmtN(r.tot,0)}</b>`},{k:'rencana',t:'Titik plan (info)*',num:true,f:r=>fmtN(r.rencana,0)}]);
  const rows=sortRows(B.rows,A.sort.tanam,cols);
  const mt={};cols.forEach(c=>{if(c.k.startsWith('m'))mt[c.k]=sum(B.rows,r=>r[c.k])});const tot=sum(B.rows,r=>r.tot);
  const foot=`<tr><td><b>Total</b></td>${cols.slice(1,-2).map(c=>`<td class="n"><b>${fmtN(mt[c.k],0)}</b></td>`).join('')}<td class="n"><b>${fmtN(tot,0)}</b></td><td class="n">${fmtN(sum(B.rows,r=>r.rencana),0)}</td></tr>`;
@@ -261,28 +268,17 @@ function renderTanam(){
  A.tanamAgg={cols:cols.map(c=>c.t),rows:B.rows,totals:mt,total:tot};
  pane.innerHTML=`<div class="two-col wide-left"><div class="card"><div class="card-h"><h4>Realisasi tanam per blok &amp; bulan <small>(klik baris = zoom ke blok)</small></h4><div class="card-tools"><select id="tnCat" aria-label="Jenis titik">${A.tanam.kategori.map(c=>`<option value="${c}"${A.tnCat===c?' selected':''}>${NAMA_KAT[c]||c}</option>`).join('')}<option value="ALL"${A.tnCat==='ALL'?' selected':''}>Semua jenis</option></select><button class="btn-mini" id="csvTanam">⭳ CSV</button></div></div><div class="tscroll">${tableHTML('tanam',cols,rows,r=>'tanam:'+r.no,foot)}</div></div>
  <div class="card side-card"><div class="card-h"><h4>Per bulan — ${A.tnCat==='ALL'?'semua jenis':NAMA_KAT[A.tnCat]||A.tnCat}</h4></div><div class="pbody">${Object.keys(mt).map(k=>`<div class="bi"><div class="row"><span>${bulanLbl(k.slice(1))}</span><b>${fmtN(mt[k],0)} titik</b></div><div class="bar"><div style="width:${mx?mt[k]/mx*100:0}%"></div></div></div>`).join('')}
-  <label class="chk big"><input type="checkbox" id="chkTanam"${map.hasLayer(A.tanamGroup)?' checked':''}> Tampilkan titik tanam di peta</label>
-  <div class="foot">Hitungan = <b>Kode_Pokok unik</b> per jenis (field <i>Name</i>) dan <i>Bulan</i>. Kode blok pada Kode_Pokok (mis. <b>B11</b>) cocok dengan <i>No_Blok</i> pada blok_sawit.geojson (diverifikasi spasial). *Titik rencana = titik “Plan Titik Tanam” per blok (belum tentu seluruh blok sudah direncanakan), tidak dipakai sebagai persentase.</div></div></div></div>`;
+  <label class="chk big"><input type="checkbox" id="chkTanam"${window.Atlas&&Atlas.isShown('titik_tanam_realisasi')?' checked':''}> Tampilkan titik tanam di peta</label>
+  <div class="foot">Hitungan = jumlah titik layer <b>Realisasi Titik Tanam</b> (SHP dedup; 1 titik = 1 kode pokok) per jenis (field <i>Name</i>) dan <i>Bulan</i>. Format kode pokok: <b>B11/R001/02</b> (blok / baris 3 digit / pohon 2 digit). Kode blok pada Kode_Pokok (mis. <b>B11</b>) cocok dengan <i>No_Blok</i> pada blok_sawit.geojson (diverifikasi spasial). *Titik plan = jumlah titik tahap “Plan Titik Tanam” (pada layer Realisasi Titik Tanam, hasil dedup) per blok, <b>informasi saja</b>: bukan target resmi, tidak dipakai untuk persentase capaian (Planting, Stake Out, Lubang Tanam, OFF hanya angka realisasi).</div></div></div></div>`;
  wireSort(pane,'tanam');pane.querySelectorAll('tr[data-hl]').forEach(r=>r.onkeydown=rowKeyHandler);
  $('tnCat').onchange=e=>{A.tnCat=e.target.value;renderTab()};
- $('chkTanam').onchange=e=>{e.target.checked?map.addLayer(A.tanamGroup):map.removeLayer(A.tanamGroup)};
- $('csvTanam').onclick=()=>csv([['Blok'].concat(cols.slice(1,-2).map(c=>c.t),['Total','Titik_rencana'])].concat(rows.map(r=>['Blok '+r.no].concat(cols.slice(1,-2).map(c=>r[c.k]),[r.tot,r.rencana]))),`realisasi_tanam_${A.tnCat}_${stamp()}.csv`);
+ $('chkTanam').onchange=e=>{if(window.Atlas)Atlas.setVisible('titik_tanam_realisasi',e.target.checked)};
+ $('csvTanam').onclick=()=>csv([['Blok'].concat(cols.slice(1,-2).map(c=>c.t),['Total','Titik_plan_info'])].concat(rows.map(r=>['Blok '+r.no].concat(cols.slice(1,-2).map(c=>r[c.k]),[r.tot,r.rencana]))),`realisasi_tanam_${A.tnCat}_${stamp()}.csv`);
  markSel();
 }
-function syncTanamChk(){const c=$('chkTanam');if(c)c.checked=map.hasLayer(A.tanamGroup)}
-function loadTitik(){
- if(A.tanamLoaded||A.tanamLoading)return;A.tanamLoading=true;
- Vault.getJSON('data/titik_tanam.json').then(j=>{
-  const rend=L.canvas({padding:.3,pane:'tanamPane'});A.tanamN=j.p.length;
-  j.p.forEach(([lng,lat,kode,c,t])=>{const cat=j.cats[c];
-   const m=L.circleMarker([lat,lng],{renderer:rend,radius:cat==='Planting'?2.6:3,weight:.6,color:'#222',fillColor:KAT_WARNA[cat]||'#fff',fillOpacity:.95,pane:'tanamPane'});
-   m.meta={kode,cat,tgl:t>=0?j.tgl[t]:null};A.tanamGroup.addLayer(m)});
-  A.tanamLoaded=true;A.tanamGroup.on('click',e=>{const m=e.layer&&e.layer.meta;if(!m)return;L.popup({className:'pp pp-blok',minWidth:220}).setLatLng(e.latlng).setContent(card(m.kode,NAMA_KAT[m.cat]||m.cat,[['Jenis',m.cat],['Tanggal',tgl(m.tgl)||'-'],['Blok',(m.kode.match(/^B(\d+)\//)||[])[1]?'Blok '+m.kode.match(/^B(\d+)\//)[1]:'-']])).openOn(map)});
- }).catch(e=>console.warn('titik tanam gagal',e)).finally(()=>{A.tanamLoading=false});
-}
-function legendTanam(on){const lg=document.querySelector('.legend');if(!lg)return;let d=$('lgTanam');
- if(d)d.remove();if(!on)return;d=document.createElement('div');d.id='lgTanam';
- d.innerHTML='<div class="lg-sub">Titik tanam</div>'+Object.keys(KAT_WARNA).map(k=>`<div class="lg-row"><i class="lg-dot" style="background:${KAT_WARNA[k]}"></i><span>${NAMA_KAT[k]}</span></div>`).join('');lg.appendChild(d)}
+function syncTanamChk(){const c=$('chkTanam');if(c&&window.Atlas)c.checked=Atlas.isShown('titik_tanam_realisasi')}
+document.addEventListener('atlas:layer',e=>{if(e.detail.id==='titik_tanam_realisasi')syncTanamChk()});
 map.on('click',()=>{clearHL()});
+A.renderTab=renderTab;A.showTab=showTab;A.u={tableHTML,wireSort,sortRows,csv,stamp,sum,$,markSel,rowKeyHandler,niceStep,tglNum,pctS};
 // mulai dengan tab aktif ter-render setelah data ada
 })();

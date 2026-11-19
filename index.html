@@ -6,7 +6,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H" crossorigin="anonymous">
-<link rel="stylesheet" href="style.css?v=202611191710"></head><body class="locked">
+<link rel="stylesheet" href="style.css?v=202611192210"></head><body class="locked">
 <main id="login" aria-label="Login">
  <div class="lg-wrap"><form id="loginForm" class="lg-card" autocomplete="on" novalidate>
   <div class="lg-logo"><img src="brand/logo_icon.png" alt="Logo PT Dwi Nagarta Palma" width="58" height="58"></div>
@@ -37,7 +37,8 @@
 </header>
 <aside id="panel">
  <details class="sec" open><summary>Ringkasan</summary><div class="sec-body"><div id="summary"></div></div></details>
- <details class="sec" open><summary>Filter Data <span class="badge" id="fCount" hidden></span></summary><div class="sec-body filters">
+ <details class="sec" open><summary>Cari Kode Pokok</summary><div class="sec-body"><div class="kode-q"><input id="kodeQ" type="search" inputmode="text" autocomplete="off" autocapitalize="characters" placeholder="B11/R001/02" aria-label="Kode pokok (pohon)"><button id="kodeGo" type="button" class="btn-sec">Cari</button></div><div id="kodeRes" class="kode-res" role="status" aria-live="polite"></div><div class="kode-help">Format kode pokok: <b>B</b>blok<b>/R</b>baris(3 digit)<b>/</b>pohon(2 digit), mis. <b>B11/R001/02</b>. Format lama (B11/R1/2), huruf kecil, dan spasi tetap diterima.</div></div></details>
+ <details class="sec" open><summary>Filter Land Clearing <span class="badge" id="fCount" hidden></span></summary><div class="sec-body filters">
   <label>Code<select id="fCode"><option value="">Semua</option></select></label>
   <label>Pengerjaan (Alat)<select id="fPeng"><option value="">Semua</option></select></label>
   <label>Operator<select id="fOp"><option value="">Semua</option></select></label>
@@ -51,29 +52,18 @@
   <h3>Luas per Tanggal</h3><div id="perTgl"></div>
  </div></details>
 </aside>
-<section id="kpis" aria-label="Indikator utama">
- <div class="kpi kpi-hero"><div class="kpi-ic"><svg viewBox="0 0 24 24"><path d="M3 20h18M5 20V9l7-5 7 5v11M9 20v-6h6v6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></div><div><div class="kpi-l">Total Land Clearing</div><div class="kpi-v"><span id="kTot">–</span><small>ha</small></div><div class="kpi-s" id="kTotS">&nbsp;</div></div></div>
- <div class="kpi"><div class="kpi-ic ic-gold"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M3 10h18M8 3v4M16 3v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></div><div><div class="kpi-l" id="kOctL">LC Bulan Berjalan</div><div class="kpi-v"><span id="kOct">–</span><small>ha</small></div><div class="kpi-s" id="kOctS">&nbsp;</div></div></div>
- <div class="kpi"><div class="kpi-ic"><svg viewBox="0 0 24 24"><path d="M4 6l5-2 6 2 5-2v14l-5 2-6-2-5 2z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M9 4v14M15 6v14" stroke="currentColor" stroke-width="1.8"/></svg></div><div><div class="kpi-l">Luas Batas Kebun</div><div class="kpi-v"><span id="kBatas">–</span><small>ha</small></div><div class="kpi-s">Batas Kebun DNP</div></div></div>
- <div class="kpi"><div class="kpi-ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 3.5V12l6 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></div><div><div class="kpi-l" title="% Land Clearing terhadap Luas Batas Kebun">% LC / Batas Kebun</div><div class="kpi-v"><span id="kPct">–</span><small>%</small></div><div class="kpi-prog"><div id="kPctBar"></div></div></div></div>
- <div class="kpi"><div class="kpi-ic"><svg viewBox="0 0 24 24"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></div><div><div class="kpi-l">Jumlah Blok</div><div class="kpi-v"><span id="kBlok">–</span><small>blok</small></div><div class="kpi-s" id="kBlokS">&nbsp;</div></div></div>
-</section>
-<section id="kpis2" aria-label="Indikator produktivitas">
- <div class="kpi kpi-sm"><div class="kpi-ic"><svg viewBox="0 0 24 24"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></div><div><div class="kpi-l">Rata-rata ha/hari kerja <span class="tip" tabindex="0" data-tip="Total luas LC (poligon bertanggal yang punya data alat/operator) ÷ jumlah hari kerja. Poligon tanpa data alat/operator (mis. LC s/d 31 Agu 2026) tidak dihitung.">i</span></div><div class="kpi-v"><span id="kAvg">–</span><small>ha/hari</small></div></div></div>
- <div class="kpi kpi-sm"><div class="kpi-ic ic-gold"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M3 10h18M8 3v4M16 3v4M8 15l2.5 2.5L16 13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></div><div><div class="kpi-l">Jumlah hari kerja <span class="tip" tabindex="0" data-tip="Jumlah tanggal berbeda (kolom Tanggal) pada poligon yang punya data alat/operator. Tanggal adalah tanggal rekap/pengukuran, sehingga ini perkiraan hari kerja.">i</span></div><div class="kpi-v"><span id="kHari">–</span><small>hari</small></div></div></div>
- <div class="kpi kpi-sm"><div class="kpi-ic ic-gold"><svg viewBox="0 0 24 24"><path d="M4 6l5-2 6 2 5-2v14l-5 2-6-2-5 2z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M8 11h8M8 14h5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></div><div><div class="kpi-l">Sisa area belum LC <span class="tip" tabindex="0" data-tip="Luas Batas Kebun − luas gabungan (union, tanpa hitung ganda tumpang tindih) poligon LC yang berada di dalam Batas Kebun. Dihitung di UTM 48S dari LC terfilter.">i</span></div><div class="kpi-v"><span id="kSisa">–</span><small>ha</small></div></div></div>
-</section>
+<section id="kpis" aria-label="Kegiatan progres monitoring"><div class="acts-load">Memuat ringkasan kegiatan…</div></section>
 <div id="map"></div>
 <section id="dock" aria-label="Analitik dashboard">
  <div class="dock-bar" role="tablist">
-  <button class="tab on" role="tab" data-tab="tren">Tren LC</button><button class="tab" role="tab" data-tab="blok">Progres Blok</button><button class="tab" role="tab" data-tab="prod">Produktivitas</button><button class="tab" role="tab" data-tab="tabel">Tabel Data</button><button class="tab" role="tab" data-tab="tanam">Realisasi Tanam</button>
+  <button class="tab on" role="tab" data-tab="ring">Ringkasan Kegiatan</button><button class="tab" role="tab" data-tab="kurva">Kurva Kumulatif</button><button class="tab" role="tab" data-tab="pb">Progres per Blok</button><button class="tab" role="tab" data-tab="tren">LC · Tren</button><button class="tab" role="tab" data-tab="blok">LC · Progres Blok</button><button class="tab" role="tab" data-tab="prod">LC · Produktivitas</button><button class="tab" role="tab" data-tab="tabel">LC · Tabel Data</button><button class="tab" role="tab" data-tab="tanam">Realisasi Tanam</button>
   <span class="dock-sp"></span><span class="dock-hint" id="dockHint"></span>
   <button id="dockToggle" class="dock-tg" aria-expanded="true" title="Tampilkan / sembunyikan analitik" aria-label="Analitik"><svg viewBox="0 0 24 24" width="16" height="16"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
  </div>
- <div class="dock-body"><div class="pane on" id="p-tren" role="tabpanel"></div><div class="pane" id="p-blok" role="tabpanel"></div><div class="pane" id="p-prod" role="tabpanel"></div><div class="pane" id="p-tabel" role="tabpanel"></div><div class="pane" id="p-tanam" role="tabpanel"></div></div>
+ <div class="dock-body"><div class="pane on" id="p-ring" role="tabpanel"></div><div class="pane" id="p-kurva" role="tabpanel"></div><div class="pane" id="p-pb" role="tabpanel"></div><div class="pane" id="p-tren" role="tabpanel"></div><div class="pane" id="p-blok" role="tabpanel"></div><div class="pane" id="p-prod" role="tabpanel"></div><div class="pane" id="p-tabel" role="tabpanel"></div><div class="pane" id="p-tanam" role="tabpanel"></div></div>
 </section>
 <footer id="statusbar"><span class="copy">© 2026 PT Dwi Nagarta Palma · Data: Divisi GIS</span><span class="coords"><span id="cLL">Lat –, Lng –</span><span id="cUTM"></span><span id="cZ"></span></span></footer>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/proj4@2.12.1/dist/proj4.js" integrity="sha384-eCfO4pOi+VsP6z/nsQni5JF69AVBgkaI2kwPfFh+J64UMLNVDIBVvowHHM9Q62TF" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/polygon-clipping@0.15.7/dist/polygon-clipping.umd.min.js" integrity="sha384-2gzcIyrtB96QDjrxsFcJ1O461CWiXJ8fiHgIkJLwTgy4WTktHXTOXt4dviXz9Y5Q" crossorigin="anonymous"></script>
-<script src="login.js?v=202611191710"></script></body></html>
+<script src="login.js?v=202611192210"></script></body></html>
