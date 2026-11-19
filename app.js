@@ -70,11 +70,10 @@ function render(){const fs=filtered();
 let batasHa=0;
 const getJ=u=>Vault.getJSON(u);   // data terenkripsi: fetch -> dekripsi AES-GCM -> parse (lihat login.js)
 (window.EXTRAS_READY||Promise.resolve()).then(()=>Promise.all([getJ(DATA_URL),getJ(BATAS_URL).catch(e=>{console.warn('Batas kebun gagal dimuat',e);return null}),getJ(BLOK_URL).catch(e=>{console.warn('Blok sawit gagal dimuat',e);return null})])).then(([d,bk,bl])=>{data=d;
- if(bl){nBlok=bl.features.length;blok=L.geoJSON(bl,{pane:'blokPane',style:{color:BLOK_COLOR,weight:1,opacity:1,fill:true,fillOpacity:0},
-  onEachFeature:(f,l)=>{const p=f.properties;l.bindPopup(blokPopup(p),ppOpt('pp-blok'));const m=String(p.Blok||'').match(/^Blok\s*(\d+)$/);const num=p.No_Blok!=null?p.No_Blok:(m?m[1]:null);l.bindTooltip(num!=null?String(num):v(p.Blok).replace(/^Blok\s*/,''),{permanent:true,direction:'center',className:num!=null?'blok-lbl':'blok-lbl blok-lbl-sm'})}}).addTo(map);
-  const upd=()=>{const z=map.getZoom(),c=map.getContainer();c.classList.toggle('hide-blok-lbl',z<14);c.style.setProperty('--blokfs',Math.round(12*Math.pow(1.45,z-14))+'px')};map.on('zoomend',upd);upd()}
- if(bk){batas=L.geoJSON(bk,{pane:'batasPane',style:{color:BATAS_COLOR,weight:2.5,fill:false,opacity:1},
-  onEachFeature:(f,l)=>{l.bindPopup(batasPopup(f.properties),ppOpt('pp-batas'));l.bindTooltip(`${v(f.properties.Name)} – ${fmt(+f.properties.LuasHa)} ha`,{sticky:true,className:'batas-tt'})}}).addTo(map);
+ // Layer lama blok/batas = SUMBER ANALITIK (angka dashboard, choropleth, titik-dalam-poligon). Tampilan peta memakai layer Atlas
+ // (Batas Kebun DNP & Blok Kebun di grup 03 BATAS), jadi layer lama dibuat tak terlihat & tak interaktif (stroke 0, tanpa tooltip/popup).
+ if(bl){nBlok=bl.features.length;blok=L.geoJSON(bl,{pane:'blokPane',interactive:false,style:{color:BLOK_COLOR,weight:0,opacity:0,fill:true,fillOpacity:0}}).addTo(map)}
+ if(bk){batas=L.geoJSON(bk,{pane:'batasPane',interactive:false,style:{color:BATAS_COLOR,weight:0,opacity:0,fill:false}});
   batasHa=bk.features.reduce((t,f)=>t+(+f.properties.LuasHa||0),0)}
  const P=d.features.map(f=>f.properties);
  ['1','0'].filter(c=>P.some(p=>p.Code==c)).forEach(c=>$('fCode').add(new Option(codeLbl(c),c)));
@@ -86,8 +85,12 @@ const getJ=u=>Vault.getJSON(u);   // data terenkripsi: fetch -> dekripsi AES-GCM
  // KPI statis
  $('kBatas').textContent=bk?fmt(batasHa):'–';$('kBlok').textContent=bl?fmtN(nBlok,0):'–';
  if(bl){const lb=bl.features.reduce((t,f)=>t+(+f.properties.LuasHa||0),0);$('kBlokS').textContent=`Total ${fmt(lb)} ha`}
- const lgB=document.getElementById('lgBatas');if(lgB&&bk)lgB.textContent=`Batas Kebun DNP (${fmt(batasHa)} Ha)`;
- window.layersCtl=L.control.layers({'Citra Satelit (Esri)':sat,'OpenStreetMap':osm,'Polos (Putih)':blank},Object.assign({},batas?{'Batas Kebun DNP':batas}:{},blok?{'Blok Kebun':blok}:{})).addTo(map);
+ const bases={'Citra Satelit (Esri)':sat,'OpenStreetMap':osm,'Polos (Putih)':blank};
+ // Kontrol layer berkelompok ala ArcGIS (atlas.js); jika modul Atlas tak tersedia -> kontrol Leaflet biasa
+ window.layersCtl=window.Atlas?Atlas.init({map,bases}):L.control.layers(bases,{}).addTo(map);
+ if(window.Atlas&&bl)Atlas.enrich=(id,f)=>{if(id!=='blok_kebun')return[];const lp=(f.properties.lp||[])[0];if(!lp)return[];
+  const o=bl.features.find(g=>g.geometry&&(g.geometry.type==='Polygon'?Atlas.inPoly(g.geometry.coordinates,lp[0],lp[1]):g.geometry.coordinates.some(p=>Atlas.inPoly(p,lp[0],lp[1]))));
+  return o?[['Luas (data analitik)',fmt(+o.properties.LuasHa)+' ha']].concat(o.properties.UkuranBlok?[['Ukuran Blok',v(o.properties.UkuranBlok)]]:[]):[]};
  northCtl.addTo(map);
  FIDS.forEach(i=>$(i).onchange=render);
  $('reset').onclick=()=>{FIDS.forEach(i=>$(i).value='');render()};
@@ -97,7 +100,7 @@ const getJ=u=>Vault.getJSON(u);   // data terenkripsi: fetch -> dekripsi AES-GCM
 // ---- Legenda (swatch sama seperti sebelumnya) ----
 const lg=L.control({position:'bottomright'});lg.onAdd=()=>{const d=L.DomUtil.create('div','legend');const it=(sw,t,id)=>`<div class="lg-row"><i style="${sw}"></i><span${id?` id="${id}"`:''}>${t}</span></div>`;
  d.innerHTML='<div class="lg-title">LEGENDA</div>'+it(`background:${LC_FILL};border:1px solid ${LC_LINE}`,codeLbl('1'))+it(`background:repeating-linear-gradient(90deg,#FFFF00 0 2px,#FFFFE0 2px 7px);border:1px solid ${LC_LINE}`,codeLbl('0'))
- +it(`background:#fff;border:2.5px solid ${BATAS_COLOR}`,'Batas Kebun DNP (288,66 Ha)','lgBatas')+it(`background:#fff;border:1px solid ${BLOK_COLOR}`,'Blok Kebun');L.DomEvent.disableClickPropagation(d);return d};lg.addTo(map);
+ ;L.DomEvent.disableClickPropagation(d);return d};lg.addTo(map);
 
 // ---- Tombol peta: Zoom ke kebun & Layar penuh ----
 const ICON={home:'<svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7M5 10v10h5v-6h4v6h5V10" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>',

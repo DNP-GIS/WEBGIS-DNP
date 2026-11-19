@@ -432,3 +432,55 @@ body.authed #login{display:none}
 @media(max-width:520px){#logoutBtn span{display:none}#logoutBtn{width:36px;padding:0;justify-content:center}.lg-card{padding:26px 20px 20px}.lg-title{font-size:19px;letter-spacing:1.1px}}
 @media(max-height:560px){.lg-logo{margin-top:-40px;width:64px;height:64px}.lg-logo img{width:44px;height:44px}}
 @media print{#login,#vaultErr,#logoutBtn{display:none!important}}
+
+/* ===== Layer Atlas (atlas.js): kontrol berkelompok, legenda, label, loading ===== */
+.atl-ctl.leaflet-control-layers-expanded{z-index:1400;padding:0!important;width:0;height:0;background:none;box-shadow:none!important}
+.atl-ctl.leaflet-control-layers-expanded .atl-list{width:min(318px,82vw);background:#fff;border-radius:10px;box-shadow:var(--sh);z-index:1200}
+.atl-ctl .atl-list{padding:0}
+.atl-ctl.leaflet-control-layers-expanded .atl-list{display:block;overflow-y:auto;overscroll-behavior:contain;padding:10px 10px 8px;-webkit-overflow-scrolling:touch}
+.atl-head{display:flex;align-items:center;justify-content:space-between;margin:0 2px 6px;font-size:11px;letter-spacing:1.3px;color:var(--g8)}
+.atl-x{border:0;background:var(--g1);color:var(--g8);width:26px;height:26px;border-radius:8px;font-size:12px;line-height:1;cursor:pointer}
+.atl-sec{font-size:10.5px;font-weight:800;color:var(--mut);letter-spacing:.8px;text-transform:uppercase;margin:8px 2px 3px;padding-top:6px;border-top:1px solid var(--line)}
+.atl-base .atl-sec{border-top:0;margin-top:2px}
+.atl-r[hidden]{display:none}
+.atl-r{display:flex;align-items:center;gap:2px;padding-left:calc(var(--d,0)*16px);min-height:28px}
+.atl-r label{display:flex;align-items:center;gap:6px;flex:1;min-width:0;margin:0!important;padding:3px 6px!important;line-height:1.25}
+.atl-r input{margin:0!important;flex:none;width:16px;height:16px}
+.atl-n{overflow-wrap:anywhere}
+.atl-g .atl-n{font-weight:700;color:var(--g8)}
+.atl-r.dim .atl-n,.atl-r.dim .atl-sw{opacity:.45}
+.atl-sw{flex:none;overflow:visible}
+.atl-car{flex:none;width:22px;height:26px;border:0;background:none;color:var(--mut);display:grid;place-items:center;cursor:pointer;padding:0;border-radius:6px}
+.atl-car svg{transform:rotate(-90deg);transition:transform .15s}.atl-car.open svg{transform:none}
+.atl-car:hover{background:var(--g1)}
+.atl-l{padding-left:calc(var(--d,0)*16px + 22px)}
+.atl-spin{display:none;flex:none;width:14px;height:14px;margin-right:6px;border-radius:50%;border:2px solid var(--pale);border-top-color:var(--g8);animation:locSpin .8s linear infinite}
+.atl-l.busy .atl-spin,.atl-spin.on{display:inline-block}
+.atl-err{display:none;flex:none;width:16px;height:16px;margin-right:6px;border-radius:50%;background:#b71c1c;color:#fff;font:800 11px/16px sans-serif;text-align:center}
+.atl-l.fail .atl-err{display:inline-block}
+.atl-load{position:absolute;z-index:1100;left:50%;top:calc(54px + var(--loc-h,0px));transform:translateX(-50%);display:flex;align-items:center;gap:8px;max-width:min(300px,calc(100% - 120px));padding:6px 12px;border-radius:18px;background:rgba(255,255,255,.96);box-shadow:var(--sh);font:600 12px 'Plus Jakarta Sans',sans-serif;color:var(--g8);pointer-events:none}
+.atl-load[hidden]{display:none}.atl-load .atl-spin{margin:0}
+.atl-load #atlLoadTx{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* label peta (Tahoma bila ada) */
+.atl-lbl{position:absolute;transform:translate(-50%,-50%);white-space:nowrap;line-height:1;pointer-events:none;-webkit-font-smoothing:antialiased}
+/* legenda terintegrasi */
+.legend{max-height:var(--lg-max,70vh);overflow-y:auto;overscroll-behavior:contain;max-width:min(300px,86vw)}
+.legend .lg-title{position:sticky;top:-12px;background:#fff;z-index:1;padding:2px 0 3px}
+.legend .lg-tg{margin-left:auto;border:0;background:var(--g1);color:var(--g8);width:24px;height:22px;border-radius:7px;display:grid;place-items:center;cursor:pointer;padding:0}
+.legend .lg-tg svg{transition:transform .15s}.legend.lg-collapsed .lg-tg svg{transform:rotate(180deg)}
+.legend.lg-collapsed>:not(.lg-title){display:none!important}.legend.lg-collapsed{min-width:0}.legend.lg-collapsed .lg-title{margin-bottom:0}
+.legend .lg-atlas[hidden]{display:none}
+.legend .lg-gh{margin:7px 0 1px;padding-top:6px;border-top:1px solid var(--line)}
+.legend .lg-gh button,.legend .lg-lh{display:flex;align-items:center;width:100%;border:0;background:none;padding:2px 0;text-align:left;cursor:pointer;color:var(--g8);font:800 10.5px/18px 'Plus Jakarta Sans',sans-serif;letter-spacing:.8px;text-transform:uppercase}
+.legend .lg-lh{font-weight:600;font-size:12.5px;letter-spacing:0;text-transform:none;color:var(--ink);padding-left:4px}
+.legend i.lg-car{width:14px;height:14px;margin:0 5px 0 0;display:grid;place-items:center;color:var(--mut)}
+.legend i.lg-car svg{transform:rotate(-90deg);transition:transform .15s}.legend i.lg-car.open svg{transform:none}
+.legend i.lg-sw{width:26px;height:14px;margin-right:8px;display:grid;place-items:center}
+.legend .lg-lay1{padding-left:4px}.legend .lg-cr{padding-left:22px}
+.legend .lg-row span{white-space:normal}
+@media(max-width:760px){.legend{min-width:0;max-width:min(236px,64vw)}}
+/* popup identify */
+.pp-atlas .leaflet-popup-content{max-height:340px;overflow-y:auto}
+.pp-atlas .pp-h{background:#3f4a46;color:#fff}.pp-atlas .pp-h .s{background:#e5e9e7;color:#222}.pp-atlas a.leaflet-popup-close-button{color:#fff}
+.atl-card+.atl-card{margin-top:10px;padding-top:8px;border-top:1px dashed var(--line)}
+@media print{.legend,.atl-load{display:none!important}}

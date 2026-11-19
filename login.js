@@ -7,7 +7,7 @@
 // disimpan di sessionStorage.
 (function(){
 'use strict';
-const VER='202611191600',ITER_DUMMY=600000,THROTTLE_KEY='dnp_f';
+const VER='202611191700',ITER_DUMMY=600000,THROTTLE_KEY='dnp_f';
 const MSG_BAD='User atau password salah';
 const te=new TextEncoder();
 const $=id=>document.getElementById(id);
@@ -44,10 +44,16 @@ async function getJSON(path){
  try{
   const r=await fetch('data/'+name+'.enc?v='+VER,{cache:'no-cache'});if(!r.ok)throw new Error('HTTP '+r.status);
   const buf=new Uint8Array(await r.arrayBuffer());
-  if(buf.length<33||buf[0]!==68||buf[1]!==78||buf[2]!==80||buf[3]!==69||buf[4]!==1)throw new Error('format');
-  const plain=await crypto.subtle.decrypt({name:'AES-GCM',iv:buf.slice(5,17),additionalData:te.encode('dnp-webgis|v1|file|'+name)},DEK,buf.slice(17));
+  if(buf.length<33||buf[0]!==68||buf[1]!==78||buf[2]!==80||buf[3]!==69||(buf[4]!==1&&buf[4]!==2))throw new Error('format');
+  const gz=buf[4]===2;   // v2 = gzip dulu, baru enkripsi (AAD diberi akhiran |gz sehingga versi ikut terautentikasi)
+  let plain=await crypto.subtle.decrypt({name:'AES-GCM',iv:buf.slice(5,17),additionalData:te.encode('dnp-webgis|v1|file|'+name+(gz?'|gz':''))},DEK,buf.slice(17));
+  if(gz){
+   if(typeof DecompressionStream==='undefined')throw new Error('nodecomp');
+   try{plain=await new Response(new Blob([plain]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer()}catch(e){throw new Error('format')}
+  }
   return JSON.parse(new TextDecoder().decode(plain));
  }catch(err){
+  if(err&&err.message==='nodecomp'){const m='Peramban Anda terlalu lama untuk membuka data ini (butuh DecompressionStream). Perbarui peramban lalu muat ulang.';banner(m);throw new Error(m)}
   const bad=err&&(err.name==='OperationError'||err.message==='format'||err instanceof SyntaxError);
   const m=bad?`Berkas data "${name}" gagal diverifikasi (rusak atau telah diubah). Muat ulang halaman; bila masih terjadi hubungi admin.`:`Berkas data "${name}" gagal dimuat. Periksa koneksi lalu muat ulang halaman.`;
   banner(m);throw new Error(m);
@@ -73,7 +79,7 @@ function applyLock(){
 
 // ---------- UI login ----------
 const form=$('loginForm'),msg=$('lgMsg');let busy=false;
-const SCRIPTS=['app.js','analytics.js','locate.js'];
+const SCRIPTS=['atlas_cfg.js','app.js','analytics.js','atlas.js','locate.js'];
 let extrasDone;window.EXTRAS_READY=new Promise(r=>extrasDone=r);   // app.js menunggu analytics.js & locate.js agar hook Analytics tersedia saat data tiba
 function loadScripts(){return SCRIPTS.reduce((p,s)=>p.then(()=>new Promise((res,rej)=>{const e=document.createElement('script');e.src=s+'?v='+VER;e.onload=res;e.onerror=()=>rej(new Error('Gagal memuat '+s));document.head.appendChild(e)})),Promise.resolve())}
 function showMsg(t,cls){msg.textContent=t;msg.className='lg-msg '+(cls||'')}
