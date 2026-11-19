@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>Kantor AI 3D · PT Dwi Nagarta Palma · PROTOTIPE</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230f172a'/%3E%3Cpath d='M7 24V10l9-5 9 5v14z' fill='%2338bdf8'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="css/style.css">
+<!-- Three.js di-vendor-kan (tanpa CDN, tanpa build). Path RELATIF agar jalan di GitHub Pages (subfolder repo). -->
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+</head>
+<body>
+<div id="ribbon" role="status"><span class="rb-dot"></span><b>PROTOTIPE · DATA CONTOH</b><span class="rb-sub"> — semua nama tugas, status, balasan &amp; riwayat di sini adalah simulasi, bukan data nyata</span></div>
+
+<div id="scene" aria-label="Kantor 3D isometrik satu lantai: area Tim Vision, area Tim Jarvis, ruang rapat, lounge, pantry"></div>
+<div id="overlay" aria-live="polite"></div>
+
+<header id="header" class="card">
+  <h1>Kantor AI 3D</h1>
+  <p>PT Dwi Nagarta Palma · Tim Vision &amp; Tim Jarvis</p>
+  <div id="conn" class="conn wait" role="status" aria-live="off"></div>
+</header>
+
+<nav id="toolbar" class="card" aria-label="Tampilan kamera">
+  <button type="button" data-view="all" class="active"><span class="lg">Lihat semua</span><span class="sm">Semua</span></button>
+  <button type="button" data-view="vision"><span class="lg">Area Vision</span><span class="sm">Vision</span></button>
+  <button type="button" data-view="jarvis"><span class="lg">Area Jarvis</span><span class="sm">Jarvis</span></button>
+  <button type="button" data-view="meeting"><span class="lg">Ruang Rapat</span><span class="sm">Rapat</span></button>
+  <span class="sep"></span>
+  <button type="button" id="cmdBtn" class="primary" aria-controls="cmdPanel"><span class="ic" aria-hidden="true">✉</span> <span>Perintah</span> <span class="lock" id="cmdLock" aria-hidden="true">🔒</span></button>
+</nav>
+
+<aside id="legend" class="card" aria-label="Legenda lampu status"></aside>
+
+<!-- Panel bot -->
+<aside id="botPanel" class="panel card" aria-hidden="true">
+  <div class="sheet-handle" aria-hidden="true"></div>
+  <div class="p-head">
+    <div class="avatar" id="bpAvatar"></div>
+    <div class="p-title"><h2 id="bpName"></h2><div class="role" id="bpRole"></div></div>
+    <button type="button" class="icon-btn" id="bpClose" aria-label="Tutup panel">✕</button>
+  </div>
+  <div class="p-body">
+    <div class="row-chips"><span class="status-badge" id="bpStatus"></span><span class="chip team" id="bpTeam"></span></div>
+    <h3>Ringkasan tugas <span class="chip sample">DATA CONTOH</span></h3>
+    <ul id="bpTasks"></ul>
+    <p class="muted small" id="bpHeartbeat"></p>
+    <button type="button" class="btn wide" id="bpCmd">Kirim perintah ke <span id="bpCmdName"></span></button>
+    <h3>Percakapan <span class="chip sample">DATA CONTOH</span></h3>
+    <div class="thread" id="bpThread" tabindex="0" aria-label="Percakapan dengan bot"></div>
+  </div>
+</aside>
+
+<!-- Panel kotak perintah -->
+<aside id="cmdPanel" class="panel card" aria-hidden="true">
+  <div class="sheet-handle" aria-hidden="true"></div>
+  <div class="p-head">
+    <div class="avatar cmd-av" aria-hidden="true">✉</div>
+    <div class="p-title"><h2>Kotak perintah</h2><div class="role"><span class="mock-only">Simulasi lokal — tidak dikirim ke mana pun</span><span class="live-only">Terhubung ke server · perintah diteruskan ke Vision</span></div></div>
+    <button type="button" class="icon-btn" id="cmdLockBtn" title="Keluar / kunci kembali" aria-label="Keluar dan kunci kembali">🔓</button>
+    <button type="button" class="icon-btn" id="cmdClose" aria-label="Tutup kotak perintah">✕</button>
+  </div>
+  <div class="p-body">
+    <form id="cmdForm" autocomplete="off">
+      <label for="cmdTarget">Bot tujuan</label>
+      <select id="cmdTarget"></select>
+      <p class="warn small" id="cmdWarn" hidden></p>
+      <label for="cmdText">Perintah</label>
+      <textarea id="cmdText" rows="3" placeholder="Tulis perintah untuk bot…" maxlength="500"></textarea>
+      <div class="form-foot"><span class="muted small" id="cmdCount">0/500</span><button type="submit" class="btn primary" id="cmdSend" disabled>Kirim</button></div>
+    </form>
+    <h3>Riwayat perintah <span class="chip sample">DATA CONTOH</span></h3>
+    <ul class="history" id="cmdHistory"></ul>
+  </div>
+</aside>
+
+<!-- Gerbang kata sandi (TIRUAN di prototipe) -->
+<div id="gate" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="gateTitle">
+  <form class="card gate-card" id="gateForm" autocomplete="on">
+    <div class="gate-ic" aria-hidden="true">🔒</div>
+    <h2 id="gateTitle">Masukkan kata sandi</h2>
+    <p class="muted">Kotak perintah dan percakapan bot dikunci. Masukkan kata sandi untuk membukanya.</p>
+    <input type="password" id="gatePw" placeholder="Kata sandi" autocomplete="current-password" aria-label="Kata sandi" maxlength="256">
+    <p class="gate-err" id="gateErr" role="alert" hidden></p>
+    <p class="gate-demo mock-only"><b>MODE PRATINJAU · DEMO — bukan password asli.</b> Gerbang ini tiruan: tidak ada kata sandi sungguhan di kode; ketik apa saja (tidak kosong) untuk melanjutkan. Di mode server, kata sandi diverifikasi oleh Cloudflare Worker.</p>
+    <div class="gate-actions"><button type="button" class="btn" id="gateCancel">Batal</button><button type="submit" class="btn primary">Buka</button></div>
+  </form>
+</div>
+
+<div id="toast" role="status" aria-live="polite" hidden></div>
+<div id="loading">Memuat kantor 3D…</div>
+<noscript><p style="position:fixed;inset:60px 20px;color:#111">Situs ini membutuhkan JavaScript.</p></noscript>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
