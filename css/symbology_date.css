@@ -1,0 +1,14 @@
+/* Simbologi tanggal (js/symbology_date.js): widget rentang di legenda + baris legenda (solid / arsir). Gaya mengikuti legenda v6/v7. */
+.legend .lg-sd{margin:0 0 8px;padding:7px 8px 8px;border:1px solid var(--line,#d7dfd9);border-radius:8px;background:rgba(255,255,255,.55)}
+.sd-ctl{display:grid;gap:5px}
+.sd-title{font-family:inherit;font-weight:700;font-size:10.5px;line-height:1.2;letter-spacing:.04em;text-transform:uppercase;color:var(--mut,#5b6b60)}
+.sd-two{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.sd-two label{display:grid;gap:2px;font-size:10.5px;color:var(--mut,#5b6b60);min-width:0}
+.sd-two input[type=date]{width:100%;min-width:0;box-sizing:border-box;font-family:inherit;font-weight:500;font-size:11.5px;line-height:1.2;padding:4px 5px;border:1px solid var(--line,#cfd8d2);border-radius:6px;background:#fff;color:inherit}
+.sd-reset{justify-self:start;font-family:inherit;font-weight:600;font-size:10.5px;line-height:1;padding:4px 9px;border:1px solid var(--line,#cfd8d2);border-radius:6px;background:#fff;cursor:pointer;color:inherit}
+.sd-reset:hover{background:#f1f6f2}
+.sd-sum{font-size:10.5px;line-height:1.35;color:var(--mut,#5b6b60)}
+.legend .sd-row .lg-sw{width:26px;height:14px}
+.legend .sd-row.sd-zero span{opacity:.55}
+.legend .sd-row.sd-zero .lg-sw{opacity:.55}
+@media (max-width:760px){.legend .lg-sd{padding:6px}.sd-two input[type=date]{font-size:12px}}

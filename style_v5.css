@@ -65,6 +65,12 @@
 #actHero .info-pairs .ip{background:#f7faf8;border:1px solid var(--line);border-radius:8px;padding:7px 9px}
 #actHero .info-pairs .ip b{display:block;font-size:14px;font-variant-numeric:tabular-nums}
 #actHero .info-pairs .ip span{font-size:10.5px;color:var(--mut)}
+#actHero .info-pairs .ip .sp,#actList .act-subs .ip .sp{display:block;font-size:9.5px;font-weight:700;color:var(--g8);line-height:1.3;margin-top:2px}
+#actHero .rp-kelas{margin-top:6px}
+#actList .act-subs{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:4px}
+#actList .act-subs .ip{background:#f7faf8;border:1px solid var(--line);border-radius:6px;padding:4px 6px;min-width:0}
+#actList .act-subs .ip b{display:block;font-size:11.5px;font-variant-numeric:tabular-nums;line-height:1.15;color:var(--ink)}
+#actList .act-subs .ip span{font-size:9.5px;color:var(--mut);line-height:1.25}
 #actHero .open-dock{margin-top:10px;width:100%;height:34px;border-radius:9px;border:1px solid var(--g8);background:#fff;color:var(--g8);font:700 12px 'Plus Jakarta Sans',sans-serif}
 #actHero .open-dock:hover{background:var(--g8);color:#fff}
 #lcTools,#genTools{padding:0 12px 4px}

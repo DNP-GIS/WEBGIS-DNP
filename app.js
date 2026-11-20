@@ -4,7 +4,7 @@ const CUR_CODE='1';
 // Dasar target persen LC & Rumpukan: 'batas_kebun' (keputusan pemilik) atau 'status_lahan' (union Status Lahan DNP) - ubah HANYA konstanta ini
 const TARGET_BASIS='batas_kebun';
 const BATAS_COLOR='#333333',BLOK_COLOR='#555555';
-const VER='202611201400';
+const VER='202611202300';
 const DATA_URL='data/land_clearing.geojson?v='+VER;
 const BATAS_URL='data/batas_kebun.geojson?v='+VER;
 const BLOK_URL='data/blok_sawit.geojson?v='+VER;
@@ -14,10 +14,9 @@ const KEBUN_URL='data/kebun_dnp.geojson?v='+VER;
 const BLOK_ATLAS_URL='data/atlas_blok_kebun.geojson?v='+VER;
 const BLN=['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
 const BLN_FULL=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
-const osm=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap'});
-const sat=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,attribution:'Esri World Imagery'});
-const blank=L.tileLayer('data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==',{maxZoom:19,attribution:'Polos'});
-const map=L.map('map',{layers:[sat]}).setView([-3.71,104.45],13);
+const map=L.map('map',{maxZoom:21}).setView([-3.71,104.45],13);
+if(window.Basemap)Basemap.init(map);
+else L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:21,maxNativeZoom:18,attribution:'Esri World Imagery'}).addTo(map);
 L.control.scale({imperial:false,maxWidth:140}).addTo(map);
 let data,batas,blok,nBlok=0,first=true,homeBounds=null;
 map.createPane('blokPane');map.getPane('blokPane').style.zIndex=335;map.createPane('batasPane');map.getPane('batasPane').style.zIndex=336;
@@ -50,7 +49,8 @@ function render(){const fs=filtered();
  const gt=group(fs,'Tanggal');$('perTgl').innerHTML=bars(gt,tgl,Object.keys(gt).sort((x,y)=>x=='-'?1:y=='-'?-1:x<y?-1:1),()=>'','tgl');
  // KPI
  const cur=fs.filter(f=>f.properties.Code==CUR_CODE).reduce((t,f)=>t+f.properties.Luas,0);
- const pct=batasHa?tot/batasHa*100:0;
+ const officialPct=(window.Kegiatan&&Kegiatan.F&&Kegiatan.F.lc)?Kegiatan.F.lc.pct:null;
+ const pct=(officialPct!=null&&!nAct)?officialPct:(batasHa?tot/batasHa*100:0);
  window.KPIV=Object.assign(window.KPIV||{},{tot,n:fs.length,N:data.features.length,nAct,cur,pct,batasHa});fillKpi();
  $('fCount').hidden=!nAct;$('fCount').textContent=nAct+' aktif';
  window.RENDERED=fs.length;window.TOTAL=tot;
@@ -59,10 +59,11 @@ let batasHa=0;
 function fillKpi(){const K=window.KPIV,A=window.Analytics;if(!K)return;const set=(id,t)=>{const e=$(id);if(e)e.textContent=t};
  set('kTot',fmt(K.tot));set('kTotS',K.nAct?`Terfilter · ${K.n} dari ${K.N} poligon`:`${K.n} poligon land clearing`);if($('kTotS'))$('kTotS').classList.toggle('flt',!!K.nAct);
  set('kOct',fmt(K.cur));set('kOctS',K.tot?`${fmtN(K.cur/K.tot*100,1)}% dari total LC`:'–');if(K.octL)set('kOctL',K.octL);
- set('kPct',K.batasHa?fmtN(K.pct,2):'–');if($('kPctBar'))$('kPctBar').style.width=Math.min(K.pct,100)+'%';
+ set('kPct',K.batasHa?fmtN(K.pct,1):'–');if($('kPctBar'))$('kPctBar').style.width=Math.min(K.pct,100)+'%';
  set('kBatas',K.batasTxt||'–');set('kBlok',K.blokTxt||'–');set('kBlokS',K.blokS||'');
  if(A&&A.kpi){set('kAvg',A.kpi.hari?fmt(A.kpi.avg):'–');set('kHari',A.kpi.hari?fmtN(A.kpi.hari,0):'–');set('kSisa',fmt(A.kpi.sisa))}}
 window.fillKpi=fillKpi;
+document.addEventListener('kegiatan:ready',()=>{if(window.KPIV&&!KPIV.nAct&&window.Kegiatan&&Kegiatan.F&&Kegiatan.F.lc){KPIV.pct=Kegiatan.F.lc.pct;fillKpi();}});
 const getJ=u=>Vault.getJSON(u);   // data terenkripsi: fetch -> dekripsi AES-GCM -> parse (lihat login.js)
 (window.EXTRAS_READY||Promise.resolve()).then(()=>Promise.all([getJ(DATA_URL),getJ(BATAS_URL).catch(e=>{console.warn('Batas kebun gagal dimuat',e);return null}),getJ(BLOK_URL).catch(e=>{console.warn('Blok sawit gagal dimuat',e);return null}),TARGET_BASIS==='status_lahan'?getJ(KEBUN_URL).catch(e=>null):Promise.resolve(null),getJ(BLOK_ATLAS_URL).catch(e=>{console.warn('Blok kebun (atlas) gagal dimuat',e);return null})])).then(([d,bk,bl,kd,ab])=>{data=d;if(window.Atlas){Atlas.pre.land_clearing=d;if(ab)Atlas.pre.blok_kebun=ab}
  // Layer lama blok/batas = SUMBER ANALITIK (angka dashboard, choropleth, titik-dalam-poligon). Tampilan peta memakai layer Atlas
@@ -89,9 +90,9 @@ const getJ=u=>Vault.getJSON(u);   // data terenkripsi: fetch -> dekripsi AES-GCM
    const lb=bl.features.reduce((t,f)=>t+(+f.properties.LuasHa||0),0);
    window.KPIV.blokS=`Total ${fmt(lb)} ha`;window.KPIV.blokBasis='LuasHa (blok_sawit)';
   }}
- const bases={'Citra Satelit (Esri)':sat,'OpenStreetMap':osm,'Polos (Putih)':blank};
- // Kontrol layer berkelompok ala ArcGIS (atlas.js); jika modul Atlas tak tersedia -> kontrol Leaflet biasa
- window.layersCtl=window.Atlas?Atlas.init({map,bases}):L.control.layers(bases,{}).addTo(map);
+ const bases=(window.Basemap&&Basemap.atlasBases&&Basemap.atlasBases())||{};
+ // Kontrol layer berkelompok ala ArcGIS (atlas.js). Citra dasar diatur pemilih basemap v7 (bukan radio di panel layer).
+ window.layersCtl=window.Atlas?Atlas.init({map,bases,baseMode:'external'}):L.control.layers(bases,{}).addTo(map);
  // Atlas.enrich: baris tambahan pada tabel atribut = SEMUA field data analitik lama (blok_sawit / batas_kebun) yang cocok secara spasial
  if(window.Atlas)Atlas.enrich=(id,f)=>{let o=null;
   if(id==='blok_kebun'&&bl){const lp=(f.properties.lp||[])[0];if(lp)o=bl.features.find(g=>g.geometry&&(g.geometry.type==='Polygon'?Atlas.inPoly(g.geometry.coordinates,lp[0],lp[1]):g.geometry.coordinates.some(p=>Atlas.inPoly(p,lp[0],lp[1]))))}

@@ -29,39 +29,91 @@ function lcIn(o){return basis()==='kebun'?{in:o.dalam_kebun_ha,out:o.luar_kebun_
 function figures(P){
  const lc=P.lc,rp=P.rumpukan,ci=rp.kelas_info,sto=P.sto,tn=P.tanam.cats,jl=P.jalan,dr=P.drain,F={};
  const L=lcIn(lc),R=lcIn(rp);
- F.lc={real:L.in,total:lc.union_ha,out:L.out,pct:L.pct,w1:lc.code1.union_ha,w0:lc.code0.union_ha,und:lc.tanpa_tanggal,last:lc.tanggal_maks,n:lc.n};
- F.rumpukan={real:R.in,total:rp.union_ha,out:R.out,pct:R.pct,w1:rp.code1.union_ha,w0:rp.code0.union_ha,und:rp.tanpa_tanggal,last:rp.tanggal_maks,n:rp.n,maint:ci.maintenance.union_ha,timbun:ci.timbun.union_ha,komposit:rp.semua_kelas.union_ha};
+ const fromAt=(At,extra)=>{const und={n:At.tanpa_tanggal_n||0,ha:At.tanpa_tanggal_ha||0};
+  return Object.assign({real:At.sum_ha,dalam:At.dalam_ha,luar:At.luar_ha,pct:At.persen_dalam_batas,penyebut:At.penyebut_ha,
+   w1:At.code1_sum_ha||0,w0:At.code0_sum_ha||0,und,n:At.n,residual:At.selisih_atribut_minus_geom_ha,rawSum:At.mentah_geom_sum_ha,
+   metode:At.metode_dalam_luar,kolom:At.kolom,total:At.sum_ha,out:At.luar_ha,perTipe:At.per_tipe||{},last:null},extra||{})};
+ F.lc=fromAt(lc.atribut,{last:lc.tanggal_maks});
+ const At=rp.atribut,pk=At&&At.per_kelas||{},kR=pk.Rumpukan||{},kM=pk['Maintenance Rumpukan']||{},kT=pk['Timbun Rumpukan']||{};
+ F.rumpukan={real:At.sum_luas_ha,dalam:At.dalam_ha,luar:At.luar_ha,pct:At.persen_dalam_batas,penyebut:At.penyebut_ha,
+  w1:At.code1_sum_luas_ha,w0:At.code0_sum_luas_ha,und:rp.tanpa_tanggal,last:rp.tanggal_maks,n:At.n,
+  kelas:kR.sum_luas_ha,kelasDalam:kR.dalam_ha,kelasLuar:kR.luar_ha,
+  maint:kM.sum_luas_ha,maintDalam:kM.dalam_ha,timbun:kT.sum_luas_ha,timbunDalam:kT.dalam_ha,
+  residual:At.selisih_atribut_minus_geom_ha,rawSum:At.mentah_geom_sum_ha,rawDalam:At.mentah_geom_dalam_ha,rawLuar:At.mentah_geom_luar_ha,
+  metode:At.metode_dalam_luar,unionKomposit:rp.semua_kelas&&rp.semua_kelas.union_ha,unionDalam:rp.semua_kelas&&rp.semua_kelas.dalam_batas_ha,
+  total:At.sum_luas_ha,out:At.luar_ha};
  F.sto={real:sto.n,w1:sto.code1,w0:sto.code0,und:sto.tanpa_tanggal.n,last:sto.tanggal_maks,per:sto.per_name};
  ['Stake Out','Lubang Tanam','Planting','OFF Planting'].forEach(c=>{const o=tn[c];F[c]={real:o.unik,w1:o.code1,w0:o.code0,und:o.tanpa_tanggal,last:o.tanggal_maks,baris:o.baris}});
- const tp=(o,t)=>(o.per_tipe.find(x=>x.tipe===t)||{});
- F.jalan={real:jl.berencana.real_ha,plan:jl.berencana.rencana_ha,pct:jl.berencana.persen,total:jl.union_ha,w1:jl.code1.union_ha,w0:jl.code0.union_ha,und:jl.tanpa_tanggal,last:jl.tanggal_maks,perimeter:tp(jl,'Perimeter Road').real_ha||0,maint:jl.maintenance.ha,planUnion:jl.rencana.union_ha};
- F.drain={real:dr.berencana.real_ha,plan:dr.berencana.rencana_ha,pct:dr.berencana.persen,total:dr.union_ha,w1:dr.code1.union_ha,w0:dr.code0.union_ha,und:dr.tanpa_tanggal,last:dr.tanggal_maks,vol:dr.volume_m3,planUnion:dr.rencana.union_ha};
+ const ja=jl.atribut,jra=jl.rencana.atribut,da=dr.atribut,dra=dr.rencana.atribut;
+ F.jalan=fromAt(ja,{last:jl.tanggal_maks,plan:jra.sum_ha,planDalam:jra.dalam_ha,planLuar:jra.luar_ha,
+  perimeter:ja.perimeter_ha,mc:ja.main_collection_ha,pctPlan:ja.persen_main_collection_dari_rencana,
+  maint:ja.maintenance_luas_ha,maintDalam:ja.maintenance_dalam_ha,maintLuar:ja.maintenance_luar_ha,
+  alasanKolom:ja.alasan_kolom_bukan_Luas,planUnion:jl.rencana.union_ha,planN:jra.n});
+ F.drain=fromAt(da,{last:dr.tanggal_maks,plan:dra.sum_ha,planDalam:dra.dalam_ha,planLuar:dra.luar_ha,
+  planRaw:dra.sum_mentah_ha,planN:dra.n,planNMentah:dra.n_mentah,planDelta:dra.delta_duplikat_ha,
+  planDup:dra.duplikat,planned:da.tipe_berencana_ha,pctPlan:da.persen_tipe_berencana_dari_rencana,
+  pctPlanAll:da.persen_semua_dari_rencana,vol:dr.volume_m3,planUnion:dr.rencana.union_ha,planTypes:dra.per_tipe});
  return F}
 // ---- kartu ----
 const EYE='<svg viewBox="0 0 24 24" width="15" height="15"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/></svg>';
+function fmtTipe(pt){if(!pt||!Object.keys(pt).length)return'';return Object.entries(pt).map(([k,o])=>`${k} ${ha2(o.sum_ha)} (dalam ${ha2(o.dalam_ha)} / luar ${ha2(o.luar_ha)})`).join('; ')}
+function areaCard(f,opt){opt=opt||{};
+ const tip=`Total ${ha2(f.real)} ha = Σ ${f.kolom||'atribut'} (${n0(f.n)} poligon), dalam + luar Batas Kebun. Dalam ${ha2(f.dalam)} + Luar ${ha2(f.luar)} = ${ha2(f.real)}. Metode: setiap poligon, nilai atribut dibagi proporsional menurut clip geometri ke Batas Kebun (UTM 48S), dijumlah per poligon (bukan union).`+
+  (f.rawSum!=null?` Mentah geometri: Σ area ${ha2(f.rawSum)} ha; selisih Σ atribut − Σ geometri = ${(+f.residual||0).toLocaleString('id-ID',{minimumFractionDigits:4,maximumFractionDigits:4})} ha (pembulatan koordinat).`:'')+
+  (opt.tipeTxt?` Per tipe (Σ atribut): ${opt.tipeTxt}.`:'')+
+  ` Persen ${nf(f.pct,1)}% = ${ha2(f.dalam)} / ${ha2(f.penyebut)} ha Batas Kebun, bukan dari angka total yang mencakup luar kebun.`+
+  (opt.extraTip||'');
+ const s3=`Dalam Batas Kebun ${ha2(f.dalam)} ha (${nf(f.pct,1)}% dari ${ha2(f.penyebut)} ha Batas Kebun) · Luar Batas Kebun ${ha2(f.luar)} ha`+(opt.extraS3||'');
+ const subs=[{k:'dalam',lab:'Dalam Batas Kebun',v:ha2(f.dalam)+' ha',s:`${nf(f.pct,1)}% dari ${ha2(f.penyebut)} ha Batas Kebun`},
+  {k:'luar',lab:'Luar Batas Kebun',v:ha2(f.luar)+' ha',s:'tidak masuk persen target'}].concat(opt.subs||[]);
+ return{v:ha2(f.real),u:'ha',pill:`+${ha2(f.w1)} ha`,s3,bar:f.pct,hidePctOnTotal:true,barOnCard:false,s4:opt.s4||tgtLabel(),tip,subs,heroExtra:opt.heroExtra||''};}
 function cardData(a,F){const t=tgtLabel(),f=F[a.id];
  switch(a.id){
- case'lc':return{v:ha2(f.real),u:'ha',pill:`+${ha2(f.w1)} ha`,s3:`${nf(f.pct,1)}% dari target · total ${ha2(f.total)} ha, di luar batas ${ha2(f.out)} ha (info)`,bar:f.pct,s4:t};
- case'rumpukan':return{v:ha2(f.real),u:'ha',pill:`+${ha2(f.w1)} ha`,s3:`${nf(f.pct,1)}% (hanya kelas Rumpukan) · Maintenance ${ha2(f.maint)} ha · Timbun ${ha2(f.timbun)} ha (info, tanpa %)`,bar:f.pct,s4:t};
+ case'lc':return areaCard(f,{s4:t,extraTip:' Layer LC tidak memiliki kelas/tipe.',heroExtra:'Tidak ada pembagian kelas pada Land Clearing.'});
+ case'rumpukan':{const tip=`Total ${ha2(f.real)} ha = Σ kolom Luas semua kelas (${n0(f.n)} poligon), dalam + luar Batas Kebun. Dalam ${ha2(f.dalam)} + Luar ${ha2(f.luar)} = ${ha2(f.real)}. Metode: setiap poligon, Luas dibagi proporsional menurut clip geometri ke Batas Kebun (UTM 48S), dijumlah per poligon (bukan union — union semua kelas ∩ BK ≈ ${ha2(f.unionDalam)} ha karena tumpang tindih antar-kelas). Mentah geometri: Σ area ${ha2(f.rawSum)} ha; dalam ${ha2(f.rawDalam)}; luar ${ha2(f.rawLuar)}; selisih Σ Luas − Σ geometri = ${f.residual.toLocaleString('id-ID',{minimumFractionDigits:4,maximumFractionDigits:4})} ha (pembulatan koordinat). Per kelas (Σ Luas): Rumpukan ${ha2(f.kelas)} (dalam ${ha2(f.kelasDalam)} / luar ${ha2(f.kelasLuar)}); Maintenance ${ha2(f.maint)} (semua dalam); Timbun ${ha2(f.timbun)} (semua dalam). Persen ${nf(f.pct,1)}% = ${ha2(f.dalam)} / ${ha2(f.penyebut)} ha Batas Kebun, bukan dari angka total yang mencakup luar kebun.`;
+  return{v:ha2(f.real),u:'ha',pill:`+${ha2(f.w1)} ha`,
+   s3:`Dalam Batas Kebun ${ha2(f.dalam)} ha (${nf(f.pct,1)}% dari ${ha2(f.penyebut)} ha Batas Kebun) · Luar Batas Kebun ${ha2(f.luar)} ha · kelas: Rumpukan ${ha2(f.kelas)} · Maintenance ${ha2(f.maint)} · Timbun ${ha2(f.timbun)}`,
+   bar:f.pct,hidePctOnTotal:true,barOnCard:false,s4:t,tip,
+   subs:[
+    {k:'dalam',lab:'Dalam Batas Kebun',v:ha2(f.dalam)+' ha',s:`${nf(f.pct,1)}% dari ${ha2(f.penyebut)} ha Batas Kebun`},
+    {k:'luar',lab:'Luar Batas Kebun',v:ha2(f.luar)+' ha',s:'tidak masuk persen target'}
+   ]};}
  case'sto':{const top=Object.entries(f.per).sort((x,y)=>y[1]-x[1]).slice(0,3).map(([k,v])=>`${k} ${n0(v)}`).join(' · ');return{v:n0(f.real),u:'titik',pill:`+${n0(f.w1)}`,s3:top,s4:'Stake Out oleh surveyor · tanpa target (jumlah titik saja)'}}
- case'stakeout':{const o=F['Stake Out'];return{v:n0(o.real),u:'titik unik',pill:`+${n0(o.w1)}`,s3:`Hingga 7 Nov (Code 0): ${n0(o.w0)}`,s4:'Tahap titik tanam (berbeda dari STO) · tanpa target'}}
- case'lubang':{const o=F['Lubang Tanam'],pb=K.P.tanam.per_blok,bl=Object.entries(pb).filter(([k,v])=>v['Lubang Tanam']>0).sort((x,y)=>y[1]['Lubang Tanam']-x[1]['Lubang Tanam']).map(([k,v])=>`Blok ${k}: ${n0(v['Lubang Tanam'])}`).join(' · ');
-  return{v:n0(o.real),u:'titik',pill:`+${n0(o.w1)}`,s3:`Tanpa tanggal: ${n0(o.und)} titik`,s4:bl||'Tanpa target'}}
- case'planting':{const o=F['Planting'],of=F['OFF Planting'];return{v:n0(o.real),u:'titik unik',pill:`+${n0(o.w1)}`,s3:`OFF Planting: ${n0(of.real)} titik (minggu ini ${n0(of.w1)})`,s4:`Realisasi saja · jumlah titik plan ${n0(K.P.tanam.rencana_referensi_unik)} (informasi saja, bukan target)`}}
- case'jalan':return{v:ha2(f.real),u:'ha',pill:`+${ha2(f.w1)} ha`,s3:`${nf(f.pct,1)}% dari rencana ${ha2(f.plan)} ha (Main+Collection, luas poligon)`,bar:f.pct,s4:`Perimeter ${ha2(f.perimeter)} ha tanpa rencana · Maintenance ${ha2(f.maint)} ha`};
- case'drain':return{v:ha2(f.real),u:'ha',pill:`+${ha2(f.w1)} ha`,s3:`${nf(f.pct,1)}% dari rencana ${ha2(f.plan)} ha (tipe berencana, luas poligon)`,bar:f.pct,s4:`Total realisasi ${ha2(f.total)} ha · volume galian ${n0(f.vol)} m³`}}}
+ case'stakeout':{const o=F['Stake Out'],m=K.P.tanam.mentah||{};const tip=`Angka = titik unik setelah dedup 3 m. Mentah sumber: ${n0(m['Stake Out']||o.baris)} baris → ${n0(o.real)} unik.`;return{v:n0(o.real),u:'titik unik',pill:`+${n0(o.w1)}`,s3:`Hingga 7 Nov (Code 0): ${n0(o.w0)}`,s4:'Tahap titik tanam (berbeda dari STO) · tanpa target',tip}}
+ case'lubang':{const o=F['Lubang Tanam'],pb=K.P.tanam.per_blok,m=K.P.tanam.mentah||{},bl=Object.entries(pb).filter(([k,v])=>v['Lubang Tanam']>0).sort((x,y)=>y[1]['Lubang Tanam']-x[1]['Lubang Tanam']).map(([k,v])=>`Blok ${k}: ${n0(v['Lubang Tanam'])}`).join(' · ');
+  const tip=`Angka = titik unik setelah dedup 3 m. Mentah sumber: ${n0(m['Lubang Tanam']||o.baris)} baris → ${n0(o.real)} unik.`;
+  return{v:n0(o.real),u:'titik unik',pill:`+${n0(o.w1)}`,s3:`Tanpa tanggal: ${n0(o.und)} titik`,s4:bl||'Tanpa target',tip}}
+ case'planting':{const o=F['Planting'],of=F['OFF Planting'],m=K.P.tanam.mentah||{},planU=K.P.tanam.rencana_referensi_unik,planM=K.P.tanam.rencana_referensi_mentah||m.rencana;
+  const tip=`Angka = titik unik setelah dedup 3 m. Mentah sumber: Planting ${n0(m.Planting)} baris → ${n0(o.real)} unik; OFF Planting ${n0(m['OFF Planting'])} baris → ${n0(of.real)} unik; realisasi ${n0(m.realisasi_total)} baris → 9.651 unik. Plan referensi ${n0(planM)} baris → ${n0(planU)} unik (informasi saja, bukan target).`;
+  return{v:n0(o.real),u:'titik unik',pill:`+${n0(o.w1)}`,s3:`OFF Planting: ${n0(of.real)} titik unik (minggu ini ${n0(of.w1)})`,s4:`Realisasi saja · jumlah titik plan ${n0(planU)} unik (mentah ${n0(planM)}; informasi saja, bukan target)`,tip}}
+ case'jalan':{const tipe=fmtTipe(f.perTipe);
+  return areaCard(f,{s4:`Rencana ${ha2(f.plan)} ha (Σ Shape_Area, ${n0(f.planN)} poligon) · Maintenance ${ha2(f.maint)} ha (dalam ${ha2(f.maintDalam)} / luar ${ha2(f.maintLuar)}; layer terpisah, tidak masuk 6,93)`,
+   tipeTxt:tipe,extraTip:' '+ (f.alasanKolom||'')+` Vs rencana ${ha2(f.plan)} ha (hanya Main+Collection): Main+Collection realisasi ${ha2(f.mc)} ha = ${nf(f.pctPlan,1)}% dari ${ha2(f.plan)} ha. Perimeter Road ${ha2(f.perimeter)} ha tidak punya pasangan rencana.`,
+   extraS3:` · vs rencana ${ha2(f.plan)} ha: Main+Collection ${ha2(f.mc)} ha = ${nf(f.pctPlan,1)}% dari ${ha2(f.plan)} ha · Perimeter ${ha2(f.perimeter)} ha tanpa pasangan rencana`,
+   heroExtra:`Per tipe (Σ Shape_Area): ${tipe}. Rencana ${ha2(f.plan)} ha (penyebut pembanding Main+Collection).`,
+   subs:[{k:'rencana',lab:'Rencana Jalan (Σ Shape_Area)',v:ha2(f.plan)+' ha',s:`penyebut pembanding Main+Collection · ${n0(f.planN)} poligon`}]});}
+ case'drain':{const tipe=fmtTipe(f.perTipe);
+  const dup=(f.planDup&&f.planDup[0])||{objectid:[2,336],ha_masing:0.81560301};
+  const dupNote=`Dua poligon Rencana Perimeter Drain identik (OBJECTID ${dup.objectid.join(' & ')}) dihitung sekali (${ha2(dup.ha_masing)} ha), bukan dua kali. Mentah ${ha2(f.planRaw)} ha → resmi ${ha2(f.plan)} ha (${n0(f.planN)} dari ${n0(f.planNMentah)} poligon).`;
+  return areaCard(f,{s4:`Rencana ${ha2(f.plan)} ha (Σ Shape_Area, ${dupNote}) · volume galian ${n0(f.vol)} m³`,
+   tipeTxt:tipe,extraTip:' '+dupNote+` Vs rencana: semua tipe ${ha2(f.real)} / ${ha2(f.plan)} = ${nf(f.pctPlanAll,1)}%; tipe berencana (tanpa Cuci parit & Gorong Gorong) ${ha2(f.planned)} / ${ha2(f.plan)} = ${nf(f.pctPlan,1)}%.`,
+   extraS3:` · vs rencana ${ha2(f.plan)} ha (dedup): semua tipe ${nf(f.pctPlanAll,1)}% · tipe berencana ${ha2(f.planned)} ha = ${nf(f.pctPlan,1)}%`,
+   heroExtra:`Per tipe (Σ Shape_Area): ${tipe}. ${dupNote}`,
+   subs:[{k:'rencana',lab:'Rencana Drain (Σ Shape_Area, dedup)',v:ha2(f.plan)+' ha',s:`Rencana Perimeter Drain berisi 2 poligon identik (OBJECTID 2 & 336); dihitung sekali; mentah ${ha2(f.planRaw)} ha`}]});}}}
 const SHORT={lc:'LC',rumpukan:'Rumpukan',sto:'STO',stakeout:'Stake Out',lubang:'Lubang',planting:'Planting',jalan:'Jalan',drain:'Drain'};
 function pctTxt(d){return d.bar!=null?nf(d.bar,1)+'%':''}
 function renderCards(){const F=K.F,host=$('actList')||$('kpis');if(!host)return;host.innerHTML=ACTS.map(a=>{const d=cardData(a,F);K.cards=K.cards||{};K.cards[a.id]=d;
- const pct=pctTxt(d);
- return `<article class="act${K.sel===a.id?' sel':''}" data-act="${a.id}" tabindex="0" role="button" aria-expanded="${K.sel===a.id}" aria-label="${esc(a.name)}: buka detail di panel kiri" style="--ac:${a.color}">
+ const pct=(!d.hidePctOnTotal)&&pctTxt(d);
+ const subs=d.subs?`<div class="act-subs" title="${esc(d.tip||d.s3)}">${d.subs.map(x=>`<div class="ip" data-rp="${esc(x.k||'')}"><b>${esc(x.v)}</b><span>${esc(x.lab)}</span>${x.s?`<span class="sp">${esc(x.s)}</span>`:''}</div>`).join('')}</div>`:'';
+ return `<article class="act${K.sel===a.id?' sel':''}" data-act="${a.id}" tabindex="0" role="button" aria-expanded="${K.sel===a.id}" aria-label="${esc(a.name)}: buka detail di panel kiri" style="--ac:${a.color}" ${d.tip?`title="${esc(d.tip)}"`:''}>
  <div class="act-h"><i class="act-dot"></i><b title="${esc(a.name)}">${esc(a.name)}</b><button type="button" class="act-eye" data-eye="${a.id}" aria-pressed="false" title="Tampilkan/sembunyikan layer ${esc(a.name)} di peta" aria-label="Layer peta ${esc(a.name)}">${EYE}</button></div>
  <div class="act-v"><span class="v">${d.v}</span><small>${d.u}</small>${pct?`<span class="pct">${pct}</span>`:''}<span class="pill" title="Minggu ini = Code 1 (data ${tg(K.P.meta.minggu_ini.tanggal)}); Hingga 7 Nov = Code 0">${d.pill}</span></div>
- ${d.bar!=null?`<div class="kpi-prog"><div style="width:${Math.min(d.bar,100)}%"></div></div>`:''}
+ ${subs}
+ ${d.bar!=null&&d.barOnCard!==false?`<div class="kpi-prog"><div style="width:${Math.min(d.bar,100)}%"></div></div>`:''}
  </article>`}).join('');
  renderStrip();placeDetail();syncEyes()}
 function renderStrip(){const host=$('strip');if(!host||!K.F)return;
- host.innerHTML=ACTS.map(a=>{const d=K.cards[a.id],pct=pctTxt(d),tip=esc((d.s3||'')+' · '+(d.s4||''));
+ host.innerHTML=ACTS.map(a=>{const d=K.cards[a.id],pct=pctTxt(d),tip=esc((d.tip||d.s3||'')+' · '+(d.s4||''));
   return `<button type="button" class="strip-item${K.sel===a.id?' sel':''}" data-act="${a.id}" style="--ac:${a.color}" title="${tip}">
    <span class="meta"><span class="nm">${esc(SHORT[a.id]||a.name)}</span><span class="val">${d.v}<small>${d.u}</small></span></span>
    ${pct?`<span class="pct">${pct}</span>`:'<span class="pct" style="color:var(--mut);font-weight:600">—</span>'}
@@ -111,8 +163,12 @@ function isTanamAct(a){return !!(a&&(a.cat||a.id==='planting'||a.id==='stakeout'
 function catOf(p){return CATMAP[p.Name]||p.Name}
 function pointPred(a){const f=fltOf(a.id);return p=>{if(isTanamAct(a)&&!tanamFlt(p))return false;return matchFlt(p,f)}}
 function restoreLayer(id){const s=Atlas.st[id];if(!s||!Atlas.lay[id])return;if(Atlas.lay[id].fmt==='pts'){if(s.pts)Atlas.setPointFilter(id,tanamFlt)}else if(s.data&&s.data.features){const all=s.data.features;if(s.feats&&s.feats.length!==all.length)Atlas.setFeatures(id,all);else if(s.feats&&s.feats!==all)Atlas.setFeatures(id,all)}}
-function restoreAllLayers(){const seen=new Set();ACTS.forEach(a=>lyrIds(a).forEach(id=>{if(!seen.has(id)){seen.add(id);restoreLayer(id)}}))}
-function applyMapFlt(a){if(!window.Atlas||!a)return;lyrIds(a).forEach(id=>{const s=Atlas.st[id],L=Atlas.lay[id];if(!s||!L)return;if(L.fmt==='pts'){if(s.pts)Atlas.setPointFilter(id,pointPred(a))}else if(s.data&&s.data.features){const f=fltOf(a.id);Atlas.setFeatures(id,fltActive(f)?s.data.features.filter(ft=>matchFlt(ft.properties,f)):s.data.features)}})}
+function restoreAllLayers(){const seen=new Set(),SD=window.SymbologiTanggal;ACTS.forEach(a=>lyrIds(a).forEach(id=>{if(!seen.has(id)){seen.add(id);if(SD&&SD.handles(id))SD.clearLayerRange(id);restoreLayer(id)}}))}
+function applyMapFlt(a){if(!window.Atlas||!a)return;lyrIds(a).forEach(id=>{const s=Atlas.st[id],L=Atlas.lay[id];if(!s||!L)return;if(L.fmt==='pts'){if(s.pts)Atlas.setPointFilter(id,pointPred(a))}else if(s.data&&s.data.features){const f=fltOf(a.id),SD=window.SymbologiTanggal;
+  /* simbologi tanggal: rentang tanggal TIDAK membuang fitur dari peta; di luar rentang / tanpa rentang = arsir */
+  const sdOn=!!(SD&&SD.handles(id));if(sdOn)SD.setLayerRange(id,{from:f.from,to:f.to});
+  const g=sdOn?Object.assign({},f,{from:'',to:''}):f;
+  Atlas.setFeatures(id,fltActive(g)?s.data.features.filter(ft=>matchFlt(ft.properties,g)):s.data.features)}})}
 function layerReady(id){const s=Atlas.st[id];return !!(s&&(s.pts||(s.data&&s.data.features)))}
 async function ensureAndApply(a,forceLoad){if(!window.Atlas||!a)return;const ids=lyrIds(a);const need=ids.filter(id=>!layerReady(id));if(need.length&&(forceLoad||fltActive(fltOf(a.id)))){await Promise.all(need.map(id=>((Atlas.ensure||(x=>Atlas.setVisible(x,true)))(id)).catch(()=>null)));need.forEach(id=>{if(Atlas.st[id]&&!Atlas.isShown(id))Atlas.setVisible(id,true)})}restoreAllLayers();applyMapFlt(a);syncEyes()}
 function featProps(id){const s=Atlas.st[id];if(!s)return null;if(s.pts){const o=[];for(let i=0;i<s.pts.n;i++)o.push(Atlas.rowProps(s.pts,i));return o}if(s.data&&s.data.features)return s.data.features.map(f=>f.properties);return null}
@@ -174,12 +230,12 @@ function genStats(a){const host=$('genTools');if(!host)return;if(!K.P){host.inne
   const tag=on?'Hasil filter':'Semua poligon';
   const byName={};rows.forEach(p=>{const k=p.Name||'(tanpa kelas)';if(!byName[k])byName[k]={l:k,ha:0,n:0};byName[k].ha+=(+p.Luas||0);byName[k].n++});
   const order=['Rumpukan','Maintenance Rumpukan','Timbun Rumpukan'];
-  const komp=order.filter(k=>byName[k]).map(k=>{const o=byName[k],lab=k==='Rumpukan'?'Rumpukan (kelas, jumlah Luas)':(k.startsWith('Maintenance')?'Maintenance (info, tanpa %)':'Timbun (info, tanpa %)');
+  const komp=order.filter(k=>byName[k]).map(k=>{const o=byName[k],lab=k==='Rumpukan'?'Rumpukan (kelas)':(k.startsWith('Maintenance')?'Maintenance':'Timbun');
    return{l:lab,v:o.ha,t:ha2(o.ha)+' ha',s:n0(o.n)+' poligon'}});
   const rp=recapBy(rows,'Pengerjaan'),ro=recapBy(rows,'Operator'),rc=recapBy(rows,'Code'),rt=recapBy(rows,'Tanggal');
   const tglRows=rt.rows.map(r=>({k:r.k==='tanpa data'?r.k:tg(r.k),ha:r.ha,n:r.n,share:r.share}));
   const codeRows=rc.rows.map(r=>({k:r.k==='1'?'Code 1 (minggu ini)':r.k==='0'?'Code 0 (hingga 7 Nov)':('Code '+r.k),ha:r.ha,n:r.n,share:r.share}));
-  html+=codeNote+`<div class="flt-sum" id="rRecapHead">${esc(tag)}: <b>${n0(rows.length)}</b> poligon · jumlah Luas <b>${ha2(rp.tot)} ha</b>. Recap memakai jumlah kolom Luas (seperti LC), bukan union resmi. KPI resmi di atas (kelas Rumpukan ${ha2(F.rumpukan.real)} ha = ${nf(F.rumpukan.pct,1)}%) tidak terfilter.</div>
+  html+=codeNote+`<div class="flt-sum" id="rRecapHead">${esc(tag)}: <b>${n0(rows.length)}</b> poligon · jumlah Luas <b>${ha2(rp.tot)} ha</b>. Recap memakai jumlah kolom Luas (semua kelas). KPI resmi di atas (Σ Luas ${ha2(F.rumpukan.real)} ha; dalam ${ha2(F.rumpukan.dalam)} ha = ${nf(F.rumpukan.pct,1)}% dari ${ha2(F.rumpukan.penyebut)} ha Batas Kebun) tidak terfilter.</div>
   <h3>Komposisi kelas <small>(${esc(tag)})</small></h3>`+(komp.length?barsMini(komp):'<div class="empty">Tidak ada data</div>')+
    `<h3 class="subh">Luas per Pengerjaan (Alat) <small>(ha, jumlah poligon, pangsa)</small></h3>`+recapBars(rp,'rPeng')+
    `<h3 class="subh">Luas per Operator <small>(ha, jumlah poligon, pangsa)</small></h3>`+recapBars(ro,'rOp')+
@@ -216,12 +272,15 @@ function renderDetail(){const wrap=$('actDetailWrap');if(!wrap)return;
  wrap.hidden=false;wrap.className='sec sec-detail act-'+a.id;
  const title=$('actDetailTitle');if(title)title.textContent=a.name;
  const hero=$('actHero');const pct=pctTxt(d);
- if(hero)hero.innerHTML=`<div class="hero-v"><span class="v">${d.v}</span><small>${d.u}</small>${pct?`<span class="pct" style="font-weight:800;color:var(--g8)">${pct}</span>`:''}<span class="pill" title="Minggu ini = Code 1">${d.pill} minggu ini</span></div>
-  ${d.bar!=null?`<div class="kpi-prog"><div style="width:${Math.min(d.bar,100)}%"></div></div>`:''}
+ if(hero){const showPct=(!d.hidePctOnTotal)&&pct;
+  const pairs=d.subs?`<div class="info-pairs" title="${esc(d.tip||'')}">${d.subs.map(x=>`<div class="ip" data-rp="${esc(x.k||'')}"><b>${esc(x.v)}</b><span>${esc(x.lab)}</span>${x.s?`<span class="sp">${esc(x.s)}</span>`:''}</div>`).join('')}</div>`:'';
+  const extra=d.heroExtra?`<p class="hero-s2 rp-kelas">${esc(d.heroExtra)}</p>`:(a.id==='rumpukan'?`<p class="hero-s2 rp-kelas">Per kelas (Σ Luas): Rumpukan ${ha2(K.F.rumpukan.kelas)} ha (dalam ${ha2(K.F.rumpukan.kelasDalam)} / luar ${ha2(K.F.rumpukan.kelasLuar)}) · Maintenance ${ha2(K.F.rumpukan.maint)} ha · Timbun ${ha2(K.F.rumpukan.timbun)} ha</p>`:'');
+  hero.innerHTML=`<div class="hero-v"><span class="v">${d.v}</span><small>${d.u}</small>${showPct?`<span class="pct" style="font-weight:800;color:var(--g8)">${pct}</span>`:''}<span class="pill" title="Minggu ini = Code 1">${d.pill} minggu ini</span></div>
+  ${d.bar!=null&&d.barOnCard!==false?`<div class="kpi-prog"><div style="width:${Math.min(d.bar,100)}%"></div></div>`:''}
   <p class="hero-s">${esc(d.s3)}</p><p class="hero-s2">${esc(d.s4)}</p>
-  ${a.id==='rumpukan'?`<div class="info-pairs"><div class="ip"><b>${ha2(K.F.rumpukan.maint)} ha</b><span>Maintenance (info, tanpa %)</span></div><div class="ip"><b>${ha2(K.F.rumpukan.timbun)} ha</b><span>Timbun (info, tanpa %)</span></div></div>`:''}
-  ${a.id==='lc'||a.id==='rumpukan'?`<div class="hero-note">${esc(tgtLabel())}</div>`:''}
-  <button type="button" class="open-dock" id="actOpenDock">Buka kurva &amp; tabel di panel bawah</button>`;
+  ${pairs}${extra}
+  ${d.subs||a.id==='lc'||a.id==='rumpukan'||a.id==='jalan'||a.id==='drain'?`<div class="hero-note">${esc(tgtLabel())}</div>`:''}
+  <button type="button" class="open-dock" id="actOpenDock">Buka kurva &amp; tabel di panel bawah</button>`;}
  const od=$('actOpenDock');if(od)od.onclick=()=>{K.csel=csTab(K.sel);if(window.Layout){Layout.setFullMap(false);Layout.setDockOpen(true)}else document.body.classList.add('dock-open');A.showTab('kurva')};
  lyBox(a);genStats(a)}
 function placeDetail(){const wrap=$('actDetailWrap');if(!wrap)return;
@@ -251,20 +310,31 @@ document.addEventListener('atlas:layer',()=>{syncEyes();document.querySelectorAl
 // ---- tab Ringkasan ----
 function ringRows(){const F=K.F,P=K.P,pc=v=>v==null?'–':nf(v,1)+'%';
  const r=[];
- r.push({id:'lc',n:'Land Clearing',u:'ha',real:ha2(F.lc.real),w1:ha2(F.lc.w1),w0:ha2(F.lc.w0),und:F.lc.und.n?`${F.lc.und.n} poligon · ${ha2(F.lc.und.ha)} ha`:'–',tgt:`${ha2(window.TARGET?TARGET.ha:0)} ha (Batas Kebun DNP)`,cap:pc(F.lc.pct),note:`Dalam batas; di luar batas ${ha2(F.lc.out)} ha (info). Total union ${ha2(F.lc.total)} ha. Tanggal terakhir ${tg(F.lc.last)}.`});
- r.push({id:'rumpukan',n:'Rumpukan (kelas Rumpukan)',u:'ha',real:ha2(F.rumpukan.real),w1:ha2(F.rumpukan.w1),w0:ha2(F.rumpukan.w0),und:F.rumpukan.und.n?`${F.rumpukan.und.n} poligon`:'–',tgt:`${ha2(window.TARGET?TARGET.ha:0)} ha (Batas Kebun DNP)`,cap:pc(F.rumpukan.pct),note:`Hanya kelas Rumpukan, dalam batas; di luar batas ${ha2(F.rumpukan.out)} ha (info).`});
- [['maintenance','Maintenance Rumpukan'],['timbun','Timbun Rumpukan']].forEach(([k,nm])=>{const o=P.rumpukan.kelas_info[k];r.push({id:'rumpukan',sub:1,n:'↳ '+nm,u:'ha',real:ha2(o.union_ha),w1:ha2(o.code1.union_ha),w0:ha2(o.code0.union_ha),und:o.tanpa_tanggal&&o.tanpa_tanggal.n?`${o.tanpa_tanggal.n} poligon`:'–',tgt:'–',cap:'info saja',note:'Kondisional: info luas, tidak masuk % / progress bar Rumpukan.'})});
+ r.push({id:'lc',n:'Land Clearing (Σ Luas, semua poligon)',u:'ha',real:ha2(F.lc.real),w1:ha2(F.lc.w1),w0:ha2(F.lc.w0),und:F.lc.und.n?`${F.lc.und.n} poligon · ${ha2(F.lc.und.ha)} ha`:'–',tgt:`${ha2(F.lc.penyebut)} ha (Batas Kebun DNP)`,cap:pc(F.lc.pct),note:`Angka utama = Σ kolom Luas (dalam + luar kebun). Capaian ${nf(F.lc.pct,1)}% = Dalam Batas Kebun ${ha2(F.lc.dalam)} / ${ha2(F.lc.penyebut)} ha Batas Kebun. Luar ${ha2(F.lc.luar)} ha tidak masuk persen. Tanggal terakhir ${tg(F.lc.last)}.`});
+ r.push({id:'lc',sub:1,n:'↳ Dalam Batas Kebun',u:'ha',real:ha2(F.lc.dalam),w1:'–',w0:'–',und:'–',tgt:`${ha2(F.lc.penyebut)} ha (Batas Kebun DNP)`,cap:pc(F.lc.pct),note:'Clip geometri (proporsi Σ Luas). Pembilang persen target.'});
+ r.push({id:'lc',sub:1,n:'↳ Luar Batas Kebun',u:'ha',real:ha2(F.lc.luar),w1:'–',w0:'–',und:'–',tgt:'–',cap:'–',note:'Tidak masuk persen target. Dalam + luar = total.'});
+ r.push({id:'rumpukan',n:'Rumpukan (semua kelas, Σ Luas)',u:'ha',real:ha2(F.rumpukan.real),w1:ha2(F.rumpukan.w1),w0:ha2(F.rumpukan.w0),und:F.rumpukan.und.n?`${F.rumpukan.und.n} poligon`:'–',tgt:`${ha2(F.rumpukan.penyebut)} ha (Batas Kebun DNP)`,cap:pc(F.rumpukan.pct),note:`Angka utama = Σ kolom Luas semua kelas (dalam + luar kebun). Capaian ${nf(F.rumpukan.pct,1)}% = Dalam Batas Kebun ${ha2(F.rumpukan.dalam)} ha ÷ ${ha2(F.rumpukan.penyebut)} ha Batas Kebun (bukan 170,21 ÷ target). Dalam ${ha2(F.rumpukan.dalam)} + luar ${ha2(F.rumpukan.luar)} = ${ha2(F.rumpukan.real)}.`});
+ r.push({id:'rumpukan',sub:1,n:'↳ Dalam Batas Kebun',u:'ha',real:ha2(F.rumpukan.dalam),w1:'–',w0:'–',und:'–',tgt:`${ha2(F.rumpukan.penyebut)} ha (Batas Kebun DNP)`,cap:pc(F.rumpukan.pct),note:'Clip geometri (proporsi Σ Luas). Pembilang persen target.'});
+ r.push({id:'rumpukan',sub:1,n:'↳ Luar Batas Kebun',u:'ha',real:ha2(F.rumpukan.luar),w1:'–',w0:'–',und:'–',tgt:'–',cap:'–',note:'Tidak masuk persen target. Dalam + luar = total.'});
+ const pkPairs=[['Rumpukan (kelas)',F.rumpukan.kelas,F.rumpukan.kelasDalam,F.rumpukan.kelasLuar],['Maintenance Rumpukan',F.rumpukan.maint,F.rumpukan.maintDalam,0],['Timbun Rumpukan',F.rumpukan.timbun,F.rumpukan.timbunDalam,0]];
+ pkPairs.forEach(([nm,tot,din,dout])=>{r.push({id:'rumpukan',sub:1,n:'↳ '+nm,u:'ha',real:ha2(tot),w1:'–',w0:'–',und:'–',tgt:'–',cap:'–',note:`Σ Luas. Dalam ${ha2(din)} ha`+(dout?` · luar ${ha2(dout)} ha`:' (semua dalam batas)')+'.'})});
  r.push({id:'sto',n:'STO – Stake Out Surveyor',u:'titik',real:n0(F.sto.real),w1:n0(F.sto.w1),w0:n0(F.sto.w0),und:`${n0(F.sto.und)} titik`,tgt:'tanpa target',cap:'–',note:'Jumlah titik: '+Object.entries(F.sto.per).sort((x,y)=>y[1]-x[1]).map(([k,v])=>`${k} ${n0(v)}`).join(', ')+'.'});
- [['stakeout','Stake Out (titik tanam)','Stake Out'],['lubang','Lubang Tanam','Lubang Tanam'],['planting','Planting','Planting'],['planting','OFF Planting','OFF Planting']].forEach(([id,nm,c],i)=>{const o=F[c];r.push({id,sub:i==3,n:(i==3?'↳ ':'')+nm,u:'titik unik',real:n0(o.real),w1:n0(o.w1),w0:n0(o.w0),und:o.und?`${n0(o.und)} titik`:'–',tgt:'tanpa target',cap:'–',note:c==='Planting'?`Realisasi saja. Jumlah titik plan ${n0(P.tanam.rencana_referensi_unik)} = informasi saja, bukan target.`:(c==='Lubang Tanam'?'Seluruhnya tanpa tanggal.':'Titik unik per Kode_Pokok.')})});
- r.push({id:'jalan',n:'Jalan (Main + Collection)',u:'ha',real:ha2(F.jalan.real),w1:ha2(F.jalan.w1),w0:ha2(F.jalan.w0),und:'–',tgt:`${ha2(F.jalan.plan)} ha (rencana)`,cap:pc(F.jalan.pct),note:`Luas poligon. Perimeter ${ha2(F.jalan.perimeter)} ha tanpa rencana; Maintenance ${ha2(F.jalan.maint)} ha tanpa tanggal; total union ${ha2(F.jalan.total)} ha vs rencana union ${ha2(F.jalan.planUnion)} ha.`});
- r.push({id:'drain',n:'Drain (tipe berencana)',u:'ha',real:ha2(F.drain.real),w1:ha2(F.drain.w1),w0:ha2(F.drain.w0),und:F.drain.und.n?`${F.drain.und.n} poligon · ${ha2(F.drain.und.ha)} ha`:'–',tgt:`${ha2(F.drain.plan)} ha (rencana)`,cap:pc(F.drain.pct),note:`Luas poligon. Total union ${ha2(F.drain.total)} ha; volume galian ${n0(F.drain.vol)} m³ (terisi sebagian). Catatan data: Rencana Perimeter Drain berisi 2 poligon identik (OBJECTID 2 &amp; 336) sehingga rencana (Σ per tipe) terhitung ganda; tanpa duplikat ≈ 9,30 ha → ≈ 35,8%.`});
+ [['stakeout','Stake Out (titik tanam)','Stake Out'],['lubang','Lubang Tanam','Lubang Tanam'],['planting','Planting','Planting'],['planting','OFF Planting','OFF Planting']].forEach(([id,nm,c],i)=>{const o=F[c];r.push({id,sub:i==3,n:(i==3?'↳ ':'')+nm,u:'titik unik',real:n0(o.real),w1:n0(o.w1),w0:n0(o.w0),und:o.und?`${n0(o.und)} titik`:'–',tgt:'tanpa target',cap:'–',note:(()=>{const m=P.tanam.mentah||{};const raw=m[c]||m[c==='Stake Out'?'Stake Out':c];return `Titik unik setelah dedup 3 m`+(raw!=null?` (mentah ${n0(raw)} baris)`:'')+'. '+(c==='Planting'?`Realisasi saja. Jumlah titik plan ${n0(P.tanam.rencana_referensi_unik)} unik (mentah ${n0(P.tanam.rencana_referensi_mentah||m.rencana)}) = informasi saja, bukan target.`:c==='Lubang Tanam'?'Seluruhnya tanpa tanggal.':'');})()})});
+ r.push({id:'jalan',n:'Jalan (semua tipe, Σ Shape_Area)',u:'ha',real:ha2(F.jalan.real),w1:ha2(F.jalan.w1),w0:ha2(F.jalan.w0),und:'–',tgt:`${ha2(F.jalan.penyebut)} ha (Batas Kebun DNP)`,cap:pc(F.jalan.pct),note:`Angka utama = Σ Shape_Area/1e4 semua tipe (dalam + luar). Capaian ${nf(F.jalan.pct,1)}% = Dalam ${ha2(F.jalan.dalam)} / ${ha2(F.jalan.penyebut)} ha Batas Kebun. Luar ${ha2(F.jalan.luar)} ha. Vs rencana ${ha2(F.jalan.plan)} ha (Σ Shape_Area, ${n0(F.jalan.planN)} poligon): Main+Collection ${ha2(F.jalan.mc)} ha = ${nf(F.jalan.pctPlan,1)}%. Perimeter ${ha2(F.jalan.perimeter)} ha tanpa pasangan rencana. Maintenance ${ha2(F.jalan.maint)} ha layer terpisah.`});
+ r.push({id:'jalan',sub:1,n:'↳ Dalam Batas Kebun',u:'ha',real:ha2(F.jalan.dalam),w1:'–',w0:'–',und:'–',tgt:`${ha2(F.jalan.penyebut)} ha (Batas Kebun DNP)`,cap:pc(F.jalan.pct),note:'Clip geometri (proporsi Σ atribut). Pembilang persen terhadap Batas Kebun.'});
+ r.push({id:'jalan',sub:1,n:'↳ Luar Batas Kebun',u:'ha',real:ha2(F.jalan.luar),w1:'–',w0:'–',und:'–',tgt:'–',cap:'–',note:'Tidak masuk persen Batas Kebun. Dalam + luar = total.'});
+ r.push({id:'jalan',sub:1,n:'↳ Rencana Jalan (Σ Shape_Area)',u:'ha',real:ha2(F.jalan.plan),w1:'–',w0:'–',und:'–',tgt:'–',cap:'–',note:'Penyebut pembanding Main+Collection. Tidak ada Perimeter Road rencana.'});
+ r.push({id:'drain',n:'Drain (semua tipe, Σ Shape_Area)',u:'ha',real:ha2(F.drain.real),w1:ha2(F.drain.w1),w0:ha2(F.drain.w0),und:F.drain.und.n?`${F.drain.und.n} poligon · ${ha2(F.drain.und.ha)} ha`:'–',tgt:`${ha2(F.drain.penyebut)} ha (Batas Kebun DNP)`,cap:pc(F.drain.pct),note:`Angka utama = Σ Shape_Area/1e4 semua tipe termasuk Cuci parit & Gorong Gorong. Capaian ${nf(F.drain.pct,1)}% = Dalam ${ha2(F.drain.dalam)} / ${ha2(F.drain.penyebut)} ha Batas Kebun. Luar ${ha2(F.drain.luar)} ha. Rencana ${ha2(F.drain.plan)} ha (Σ Shape_Area, Rencana Perimeter Drain berisi 2 poligon identik (OBJECTID 2 & 336); dihitung sekali; mentah ${ha2(F.drain.planRaw)} ha). Semua tipe ${nf(F.drain.pctPlanAll,1)}% dari rencana; tipe berencana ${ha2(F.drain.planned)} ha = ${nf(F.drain.pctPlan,1)}%. Volume galian ${n0(F.drain.vol)} m³.`});
+ r.push({id:'drain',sub:1,n:'↳ Dalam Batas Kebun',u:'ha',real:ha2(F.drain.dalam),w1:'–',w0:'–',und:'–',tgt:`${ha2(F.drain.penyebut)} ha (Batas Kebun DNP)`,cap:pc(F.drain.pct),note:'Clip geometri (proporsi Σ atribut). Pembilang persen terhadap Batas Kebun.'});
+ r.push({id:'drain',sub:1,n:'↳ Luar Batas Kebun',u:'ha',real:ha2(F.drain.luar),w1:'–',w0:'–',und:'–',tgt:'–',cap:'–',note:'Tidak masuk persen Batas Kebun. Dalam + luar = total.'});
+ r.push({id:'drain',sub:1,n:'↳ Rencana Drain (Σ Shape_Area, dedup)',u:'ha',real:ha2(F.drain.plan),w1:'–',w0:'–',und:'–',tgt:'–',cap:'–',note:`2 poligon Rencana Perimeter Drain (OBJECTID 2 & 336) identik, dihitung sekali. Mentah ${ha2(F.drain.planRaw)} ha.`});
  return r}
 function renderRing(){const pane=$('p-ring');if(!K.P){pane.innerHTML='<div class="empty" style="padding:16px">Memuat ringkasan kegiatan…</div>';return}
  const P=K.P,rows=ringRows();
  pane.innerHTML=`<div class="two-col wide-left"><div class="card"><div class="card-h"><h4>Ringkasan semua kegiatan <small>(klik baris = kurva kumulatif)</small></h4><div class="card-tools"><button class="btn-mini" id="csvRing">⭳ CSV</button></div></div><div class="tscroll"><table class="dt" id="ringT"><thead><tr><th>Kegiatan</th><th>Satuan</th><th class="n">Realisasi</th><th class="n" title="Code 1 = data ${tg(P.meta.minggu_ini.tanggal)}">Minggu ini</th><th class="n" title="Code 0 = hingga ${tg(P.meta.hingga.tanggal)}">Hingga 7 Nov</th><th>Tanpa tanggal</th><th>Target / rencana</th><th class="n">Capaian</th><th>Catatan</th></tr></thead><tbody>${rows.map(r=>`<tr data-act="${r.id}" class="${r.sub?'sub':''}${K.sel===r.id?' sel':''}" tabindex="0"><td><b>${esc(r.n)}</b></td><td>${r.u}</td><td class="n">${r.real}</td><td class="n">${r.w1}</td><td class="n">${r.w0}</td><td>${esc(r.und)}</td><td>${esc(r.tgt)}</td><td class="n">${r.cap}</td><td class="nt">${esc(r.note)}</td></tr>`).join('')}</tbody></table></div></div>
  <div class="card side-card"><div class="card-h"><h4>Definisi &amp; catatan data</h4></div><div class="pbody notes">
   <p><b>Minggu ini</b> = Code 1 (data ${tg(P.meta.minggu_ini.tanggal)}); <b>Hingga 7 Nov</b> = Code 0. Code adalah penanda minggu pelaporan dari data, bukan diturunkan dari tanggal. Tanggal data terbaru: <b>${tg(P.meta.tanggal_data)}</b>.</p>
-  <p><b>${esc(tgtLabel())}.</b> Persen LC dan Rumpukan = luas union (tanpa hitung ganda) yang berada <i>di dalam</i> Batas Kebun ÷ luas Batas Kebun, dihitung di UTM 48S; luas di luar Batas Kebun hanya info. Rumpukan = hanya kelas <i>Rumpukan</i>; Maintenance &amp; Timbun = info luas.</p>
+  <p><b>${esc(tgtLabel())}.</b> Persen LC = luas union (tanpa hitung ganda) yang berada <i>di dalam</i> Batas Kebun ÷ luas Batas Kebun, dihitung di UTM 48S; luas LC di luar Batas Kebun hanya info. Rumpukan: angka utama = Σ kolom Luas semua kelas (Rumpukan, Maintenance, Timbun), termasuk di luar Batas Kebun; persen = luas di dalam Batas Kebun (proporsi clip geometri, bukan union) ÷ luas Batas Kebun (288,66 ha) — bukan dari angka total yang mencakup luar kebun. Dalam + luar = total.</p>
   <p>Jalan &amp; Drain dibandingkan dengan rencananya sendiri (luas poligon, bukan panjang; tipe yang punya rencana). STO = Stake Out oleh surveyor (tanpa target, jumlah titik saja).</p>
   <p>Titik tanam: hanya angka realisasi (titik unik). Titik “Plan Titik Tanam” dalam layer Realisasi Titik Tanam (${n0(P.tanam.rencana_referensi_unik)} titik) = informasi saja, bukan target; tidak ada persentase capaian.</p>
   <p>Label kelas legenda mengikuti ArcGIS (style_spec) dan sebagian tidak sama dengan tanggal data. Data tanpa tanggal tidak masuk kurva kumulatif.</p></div></div></div>`;
@@ -275,14 +345,13 @@ const csTab=id=>['stakeout','lubang','planting'].includes(id)?'tanam':id;
 function selCards(){document.querySelectorAll('.act,.strip-item').forEach(c=>c.classList.toggle('sel',c.dataset.act===K.sel));document.querySelectorAll('#actList .act').forEach(c=>c.setAttribute('aria-expanded',String(c.dataset.act===K.sel)))}
 function seriesFor(id){const P=K.P,pt=(arr,key)=>arr.map(x=>[x.t,x[key]]);let S=[],target=null,rows=[],note='',unit='ha',und=null;
  switch(id){
- case'lc':S=[{n:'LC kumulatif (union)',c:'#c9a800',p:pt(P.lc.timeline,'cum')}];target={v:window.TARGET?TARGET.ha:0,l:tgtLabel()};rows=P.lc.timeline.map(x=>[x.t,x.add,x.cum]);und=P.lc.tanpa_tanggal;note='Luas union kumulatif per tanggal (total, termasuk di luar batas).';break;
- case'rumpukan':{const ci=P.rumpukan.kelas_info;S=[{n:'Rumpukan (kelas Rumpukan) kumulatif',c:'#ff8c00',p:pt(P.rumpukan.timeline,'cum')},{n:'Maintenance (info)',c:'#a87000',dash:1,p:pt(ci.maintenance.timeline,'cum')},{n:'Timbun (info)',c:'#2fa100',dash:1,p:pt(ci.timbun.timeline,'cum')}];
-  target={v:window.TARGET?TARGET.ha:0,l:tgtLabel()};rows=P.rumpukan.timeline.map(x=>[x.t,x.add,x.cum]);und=P.rumpukan.tanpa_tanggal;note='Target &amp; progres hanya untuk kelas Rumpukan; Maintenance dan Timbun = info luas (garis putus-putus), tanpa %.';break}
+ case'lc':{const At=P.lc.atribut;S=[{n:'LC kumulatif (Σ Luas)',c:'#c9a800',p:pt(At.timeline,'cum')}];target={v:At.penyebut_ha,l:'Batas Kebun DNP '+ha2(At.penyebut_ha)+' ha (penyebut %)'};rows=At.timeline.map(x=>[x.t,x.add,x.cum]);und={n:At.tanpa_tanggal_n,ha:At.tanpa_tanggal_ha};note='Kumulatif Σ kolom Luas per tanggal (semua poligon, termasuk di luar batas). Tanpa tanggal dicatat terpisah, tidak masuk kurva. Persen resmi = dalam / 288,66 ha, bukan total/target.';break}
+ case'rumpukan':{const ci=P.rumpukan.kelas_info,At=P.rumpukan.atribut,tl=At.timeline||P.rumpukan.timeline;S=[{n:'Rumpukan semua kelas (Σ Luas) kumulatif',c:'#ff8c00',p:pt(tl,'cum')},{n:'Maintenance (info)',c:'#a87000',dash:1,p:pt(ci.maintenance.timeline,'cum')},{n:'Timbun (info)',c:'#2fa100',dash:1,p:pt(ci.timbun.timeline,'cum')}];target={v:At.penyebut_ha,l:'Batas Kebun DNP '+ha2(At.penyebut_ha)+' ha (penyebut %)'};rows=tl.map(x=>[x.t,x.add,x.cum]);und=P.rumpukan.tanpa_tanggal;note='Kurva resmi = Σ Luas semua kelas per tanggal (satu basis dengan kartu). Maintenance dan Timbun = garis putus-putus (info per kelas).';break}
  case'sto':S=[{n:'STO kumulatif (titik)',c:'#0070ff',p:pt(P.sto.timeline,'cum')}];unit='titik';rows=P.sto.timeline.map((x,i)=>[x.t,x.n,x.cum]);und={n:P.sto.tanpa_tanggal.n,ha:null};note='STO = Stake Out surveyor. Tanpa target.';break;
  case'tanam':{const T=P.tanam.timeline;S=[['Planting','#2fb300'],['Stake Out','#005ce6'],['OFF Planting','#e60000']].map(([c,col])=>({n:c+' kumulatif',c:col,p:T.filter(x=>x['cum_'+c]!=null).map(x=>[x.t,x['cum_'+c]])}));unit='titik unik';
   rows=T.map(x=>[x.t,(x.Planting||0)+(x['Stake Out']||0)+(x['OFF Planting']||0),x['cum_Planting']||0,x['cum_Stake Out']||0]);und={n:P.tanam.cats['Lubang Tanam'].tanpa_tanggal,ha:null,lbl:'Lubang Tanam'};note='Hanya realisasi (titik unik per Kode_Pokok); plan titik tanam bukan target.';break}
- case'jalan':{const j=P.jalan;S=[{n:'Jalan realisasi kumulatif (union)',c:'#3b8fd6',p:pt(j.timeline,'cum')}];target={v:j.rencana.union_ha,l:'Rencana (Plan Road, union) '+ha2(j.rencana.union_ha)+' ha'};rows=j.timeline.map(x=>[x.t,x.add,x.cum]);und=j.tanpa_tanggal;note='Capaian % memakai tipe berencana (Main+Collection). Maintenance Road tanpa tanggal.';break}
- case'drain':{const d=P.drain;S=[{n:'Drain realisasi kumulatif (union)',c:'#e0301e',p:pt(d.timeline,'cum')}];target={v:d.rencana.union_ha,l:'Rencana Drain (union) '+ha2(d.rencana.union_ha)+' ha'};rows=d.timeline.map(x=>[x.t,x.add,x.cum]);und=d.tanpa_tanggal;note='Capaian % memakai tipe berencana (rencana Σ per tipe, mengikuti Puzzle17); volume galian terisi sebagian. Rencana Perimeter Drain memuat 2 poligon identik (OBJECTID 2 & 336): tanpa duplikat ≈ 9,30 ha → ≈ 35,8%.';break}}
+ case'jalan':{const At=P.jalan.atribut,Ra=P.jalan.rencana.atribut;S=[{n:'Jalan realisasi kumulatif (Σ Shape_Area, semua tipe)',c:'#3b8fd6',p:pt(At.timeline,'cum')}];target={v:Ra.sum_ha,l:'Rencana Jalan (Σ Shape_Area) '+ha2(Ra.sum_ha)+' ha'};rows=At.timeline.map(x=>[x.t,x.add,x.cum]);und={n:At.tanpa_tanggal_n,ha:At.tanpa_tanggal_ha};note='Kumulatif Σ Shape_Area semua tipe (termasuk Perimeter Road). Target kurva = rencana Σ Shape_Area '+ha2(Ra.sum_ha)+' ha (Main+Collection saja; penyebut tertulis). Kolom Luas tidak dipakai.';break}
+ case'drain':{const At=P.drain.atribut,Ra=P.drain.rencana.atribut;S=[{n:'Drain realisasi kumulatif (Σ Shape_Area, semua tipe)',c:'#e0301e',p:pt(At.timeline,'cum')}];target={v:Ra.sum_ha,l:'Rencana Drain (Σ Shape_Area, dedup) '+ha2(Ra.sum_ha)+' ha'};rows=At.timeline.map(x=>[x.t,x.add,x.cum]);und={n:At.tanpa_tanggal_n,ha:At.tanpa_tanggal_ha};note='Kumulatif Σ Shape_Area semua tipe (termasuk Cuci parit & Gorong Gorong). Target kurva = rencana '+ha2(Ra.sum_ha)+' ha setelah 2 poligon Perimeter Drain identik (OBJECTID 2 & 336) dihitung sekali (mentah '+ha2(Ra.sum_mentah_ha)+' ha). Tanpa tanggal dicatat terpisah.';break}}
  return{S,target,rows,und,note,unit}}
 function lineChart(box,o){const W=Math.max(box.clientWidth,300),H=Math.max(box.clientHeight,150),m={l:48,r:18,t:16,b:30},pw=W-m.l-m.r,ph=H-m.t-m.b;
  const all=[].concat(...o.S.map(s=>s.p));if(!all.length){box.innerHTML='<div class="empty" style="padding:20px">Tidak ada data bertanggal untuk digambar.</div>';return}
@@ -332,7 +401,7 @@ function renderPB(){const pane=$('p-pb');if(!K.P){pane.innerHTML='<div class="em
 A.TABS.ring=renderRing;A.TABS.kurva=renderKurva;A.TABS.pb=renderPB;
 function boot(){
  if(!A.ready){setTimeout(boot,120);return}
- Vault.getJSON('data/progres.json?v=202611201400').then(P=>{K.P=P;K.F=figures(P);
+ Vault.getJSON('data/progres.json?v=202611202300').then(P=>{K.P=P;K.F=figures(P);
   renderCards();A.renderTab();
   const d=P.meta.tanggal_data,[y,m]=d.split('-');const per=$('periode'),up=$('lastUpd');
   if(per)per.textContent=`Periode: ${['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'][m-1]} ${y}`;if(up)up.textContent=tg(d).replace(/ (\w+) /,(a,b)=>' '+['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'][BLN.indexOf(b)]+' ');

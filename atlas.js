@@ -22,13 +22,20 @@ function classByProps(L,p){
  return L.classes.find(c=>c.key===String(k))||L.classes.find(c=>c.key==='default')||null}
 const classOf=(L,f)=>classByProps(L,f.properties);
 const polyStyle=c=>{const s=Object.assign({},c.leaflet);if(s.dashArray==null)delete s.dashArray;s.interactive=false;return s};
+// ---------------- simbologi tanggal (js/symbology_date.js; salinan v7r2) ----------------
+// Satu saklar (keputusan Dwi 20 Nov 2026 15.00 WIB): default 'hatch-all' ada di modul (cfg.noRange).
+// 'hatch-all' = tanpa rentang semua fitur arsir (gaya Code 0); 'legacy' = simbologi Code lama.
+// true/false = modul aktif & mengenali jenis (gambar / sembunyikan); null = pakai simbologi lama (Code)
+const SDm=()=>window.SymbologiTanggal||null;
+function sdDraw(L,f){const SD=SDm();if(!SD||!SD.handles(L.id)||!SD.isActive(L.id))return null;const j=SD.jenisOf(L.id,f.properties);if(!j||j.noDate)return null;return SD.shouldDraw(L.id,f.properties)}
 // ---------------- pembangun layer ----------------
 function buildLayer(L,data){
  if(L.fmt==='pts')return new PtLayer(L,data);
  const pn=pane(L);let g;
  if(L.kind==='poly'){
   const rend=L.svg||(L.svg=L.svgR=window.L.svg({pane:pn,padding:.3}));
-  g=window.L.geoJSON(data,{pane:pn,renderer:rend,interactive:false,filter:f=>{const c=classOf(L,f);return !!(c&&c.drawn)},style:f=>polyStyle(classOf(L,f))});
+  const SD=SDm();if(SD)SD.ensurePatterns();if(SD&&SD.handles(L.id)&&SD.isActive(L.id))data={type:'FeatureCollection',features:SD.prepare(L.id,data.features)};
+  g=window.L.geoJSON(data,{pane:pn,renderer:rend,interactive:false,filter:f=>{const d=sdDraw(L,f);if(d!==null)return d;const c=classOf(L,f);return !!(c&&c.drawn)},style:f=>{const sd=SD&&SD.styleFor(L.id,f);return sd||polyStyle(classOf(L,f))}});
  }else if(L.kind==='line'){
   const rend=window.L.canvas({pane:pn,padding:.25});g=window.L.layerGroup();
   const st=L.classes[0].leaflet.polylines_bottom_to_top;                       // 4 polyline bertumpuk: pertama = paling bawah
@@ -126,7 +133,7 @@ function buildControl(bases){
  c.onAdd=()=>{ctlEl=window.L.DomUtil.create('div','leaflet-control-layers leaflet-control atl-ctl');
   ctlEl.innerHTML='<a class="leaflet-control-layers-toggle" href="#" role="button" title="Layer" aria-label="Layer"></a><section class="leaflet-control-layers-list atl-list"><div class="atl-head"><b>LAYER PETA</b><button type="button" class="atl-x" aria-label="Tutup">✕</button></div><div class="atl-base"></div><div class="atl-ops"></div><div class="atl-tree" role="tree"></div></section>';
   listEl=ctlEl.querySelector('.atl-list');baseDiv=ctlEl.querySelector('.atl-base');opsDiv=ctlEl.querySelector('.atl-ops');treeDiv=ctlEl.querySelector('.atl-tree');
-  baseDiv.innerHTML='<div class="atl-sec">Peta Dasar</div>'+Object.keys(bases).map((k,i)=>`<div class="atl-r"><label><input type="radio" name="atlBase" data-b="${i}"${map.hasLayer(bases[k])?' checked':''}><span class="atl-n">${esc(k)}</span></label></div>`).join('');
+  baseDiv.innerHTML=A._baseMode==='external'?'<div class="atl-sec">Peta Dasar</div><div class="atl-r atl-base-note">Citra diatur di pemilih basemap.</div>':'<div class="atl-sec">Peta Dasar</div>'+Object.keys(bases).map((k,i)=>`<div class="atl-r"><label><input type="radio" name="atlBase" data-b="${i}"${map.hasLayer(bases[k])?' checked':''}><span class="atl-n">${esc(k)}</span></label></div>`).join('');
   window.L.DomEvent.disableClickPropagation(ctlEl);window.L.DomEvent.disableScrollPropagation(ctlEl);
   const open=()=>{if(ctlEl.classList.contains('leaflet-control-layers-expanded'))return;const r=ctlEl.getBoundingClientRect();ctlEl.classList.add('leaflet-control-layers-expanded');ctlEl.parentNode.style.zIndex=1300;
    // panel melayang (position:fixed) agar tidak terpotong peta yang pendek (dock di bawah) dan muat di layar
@@ -182,6 +189,7 @@ function setGroupOn(i,on){const n=nodes[i];if(!n)return;
 function hideAll(){nodes.forEach(n=>{n.on=true});Object.values(A.st).forEach(s=>s.own=false);applyAll();saveLgStore()}
 function showAll(){nodes.forEach(n=>{n.on=true;n.collapsed=false});Object.values(A.st).forEach(s=>s.own=true);applyAll();saveLgStore()}
 function legendClassRows(id){const L=LAY[id];
+ {const SD=SDm();if(SD&&SD.handles(id)&&SD.isActive(id)){const st=A.st[id],fs=st&&(st.feats||(st.data&&st.data.features))||[],rr=SD.legendRows(id,fs);if(rr&&rr.length)return rr.map(r=>({label:r.label,sd:r}))}}
  if(L.p17)return L.render==='simple'?[]:L.classes.filter(c=>c.drawn&&c.n>0).map(c=>({label:c.label,c}));
  if(L.id==='genangan_air')return L.classes.filter(c=>c.drawn&&c.n>0).map(c=>({label:c.key==='default'?'Semua nilai lain':'Luas '+nf(+c.key,0)+' m²',c}));
  if(L.render==='unique_value'||L.render==='unique')return L.classes.filter(c=>c.drawn).map(c=>({label:c.label,c}));
@@ -193,7 +201,7 @@ function opSlider(id){const L=LAY[id],v=Math.round((L.op==null?1:L.op)*100);
  return hasSlider(L)?`<input type="range" class="lg-op" data-op="${id}" min="0" max="100" step="1" value="${v}" aria-label="Opasitas ${esc(dispName(L))}" title="Opasitas ${v}%">`:''}
 function legendLayer(id,d){const L=LAY[id],s=A.st[id],cr=legendClassRows(id),key='l:'+id,eff=!!(s&&s.own&&s.anc.every(g=>g.on));
  const open=lgState[key]!=null?lgState[key]:false;
- const classes=(eff&&open&&cr.length)?cr.map(r=>`<div class="lg-row lg-cr" style="--d:${d+1}"><i class="lg-sw">${swatchClass(id,r.c)}</i><span>${esc(r.label)}</span></div>`).join('')+(L.lnote?`<div class="lg-note">${esc(L.lnote)}</div>`:''):'';
+ const classes=(eff&&open&&cr.length)?cr.map(r=>r.sd?SDm().legendRowHtml(r.sd,d+1):`<div class="lg-row lg-cr" style="--d:${d+1}"><i class="lg-sw">${swatchClass(id,r.c)}</i><span>${esc(r.label)}</span></div>`).join('')+(L.lnote?`<div class="lg-note">${esc(L.lnote)}</div>`:''):'';
  const car=cr.length?`<button type="button" class="lg-lh" data-lk="${key}" aria-expanded="${!!(eff&&open)}" aria-label="Kelas ${esc(dispName(L))}" ${eff?'':'disabled'}><i class="lg-car${eff&&open?' open':''}">${ICO.car}</i></button>`:'';
  return `<div class="lg-lay${eff?'':' dim'}" data-id="${id}" style="--d:${d}"><div class="lg-lay-h">${car}<label><input type="checkbox" data-l="${id}"${s&&s.own?' checked':''}>${swatch(id)}<span class="atl-n">${esc(dispName(L))}</span></label>${opSlider(id)}</div>${classes}</div>`}
 function legendNode(n,d,parts){if(n.t==='l'){parts.push(legendLayer(n.id,d));return}
@@ -221,6 +229,7 @@ function bindLegend(lg){
  lg.addEventListener('input',e=>{const t=e.target;if(t.classList.contains('lg-op')||t.dataset.op){setOpacity(t.dataset.op,t.value/100);t.title='Opasitas '+t.value+'%'}})}
 function legendInit(){const lg=document.querySelector('.legend');if(!lg||document.getElementById('lgAtlas'))return;
  const old=document.getElementById('lgBatas');if(old){const r=old.closest('.lg-row');const nx=r&&r.nextElementSibling;r&&r.remove();if(nx&&/Blok Kebun/.test(nx.textContent))nx.remove()}
+ const SD=SDm();if(SD){SD.ensurePatterns();const sh=document.createElement('div');sh.id='sdHost';sh.className='lg-sd';lg.appendChild(sh);SD.mountControl(sh);SD.attach(A)}
  const h=document.createElement('div');h.id='lgAtlas';h.className='lg-atlas';h.hidden=true;lg.appendChild(h);
  const t=lg.querySelector('.lg-title');
  if(t&&!t.querySelector('.lg-tg')){const b=document.createElement('button');b.type='button';b.className='lg-tg';b.setAttribute('aria-label','Ciutkan/perluas legenda');b.innerHTML=ICO.car;t.appendChild(b);
@@ -245,7 +254,7 @@ function hitsAt(e){const ll=e.latlng,z=map.getZoom(),mpp=40075016.686*Math.cos(l
  ids.forEach(id=>{const L=LAY[id],hit=[];
   if(L.fmt==='pts'){hitPts(id,e,hit);if(hit.length)out.push({id,hit});return}
   for(const f of featsOf(id)){let ok=false;const g=f.geometry;if(!g)continue;
-   if(L.kind==='poly'){const c=classOf(L,f);if(!c||!c.drawn)continue;const bb=bbox(f);if(ll.lng<bb[0]||ll.lng>bb[2]||ll.lat<bb[1]||ll.lat>bb[3])continue;
+   if(L.kind==='poly'){const sdD=sdDraw(L,f);if(sdD===false)continue;if(sdD===null){const c=classOf(L,f);if(!c||!c.drawn)continue}const bb=bbox(f);if(ll.lng<bb[0]||ll.lng>bb[2]||ll.lat<bb[1]||ll.lat>bb[3])continue;
     ok=g.type==='Polygon'?inPoly(g.coordinates,ll.lng,ll.lat):g.coordinates.some(p=>inPoly(p,ll.lng,ll.lat))}
    else if(L.kind==='line')ok=nearLine(f,ll,Math.max(9*mpp,3));
    else{const p=map.latLngToContainerPoint([g.coordinates[1],g.coordinates[0]]);ok=p.distanceTo(e.containerPoint)<=12}
@@ -421,7 +430,7 @@ function identify(e){
 A.init=function(o){
  map=o.map;A.map=map;ensureDefs();
  C.tree.forEach(t=>indexTree(t,[]));restoreLgStore();
- A.ctl=buildControl(o.bases);A.ctl.addTo(map);A.ctl.addOverlay=addOverlay;
+ A._baseMode=o.baseMode||'';A.ctl=buildControl(o.bases||{});A.ctl.addTo(map);A.ctl.addOverlay=addOverlay;
  const ch=document.createElement('div');ch.id='atlLoad';ch.className='atl-load';ch.hidden=true;ch.setAttribute('role','status');ch.innerHTML='<span class="atl-spin on"></span><span id="atlLoadTx"></span>';map.getContainer().appendChild(ch);
  legendInit();map.on('moveend zoomend resize',scheduleLabels);map.on('zoomstart',()=>{if(lblPane)lblPane.textContent=''});map.on('click',identify);map.on('resize',fit);
  // yang paling berat (Jalan Lokal / Sungai) dimuat paling akhir agar peta & dashboard tampil lebih dulu
