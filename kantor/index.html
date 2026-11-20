@@ -2,7 +2,7 @@
 <html lang="id">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Kantor AI 3D · PT Dwi Nagarta Palma · PROTOTIPE</title>
 <meta name="robots" content="noindex">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230f172a'/%3E%3Cpath d='M7 24V10l9-5 9 5v14z' fill='%2338bdf8'/%3E%3C/svg%3E">
@@ -57,27 +57,36 @@
   </div>
 </aside>
 
-<!-- Panel kotak perintah -->
-<aside id="cmdPanel" class="panel card" aria-hidden="true">
+<!-- Panel kotak perintah (v3: ruang obrolan besar + lampiran berkas) -->
+<aside id="cmdPanel" class="panel card" aria-hidden="true" aria-label="Kotak perintah">
   <div class="sheet-handle" aria-hidden="true"></div>
   <div class="p-head">
     <div class="avatar cmd-av" aria-hidden="true">✉</div>
-    <div class="p-title"><h2>Kotak perintah</h2><div class="role"><span class="mock-only">Simulasi lokal — tidak dikirim ke mana pun</span><span class="live-only">Terhubung ke server · perintah diteruskan ke Vision</span></div></div>
+    <div class="p-title"><h2>Kotak perintah</h2><div class="role"><span class="mock-only">Simulasi lokal — tidak dikirim ke mana pun</span><span class="live-only">Terhubung ke server · perintah &amp; berkas diteruskan ke Vision</span></div></div>
+    <button type="button" class="icon-btn" id="cmdExpand" title="Perluas / kecilkan" aria-label="Perluas kotak perintah" aria-pressed="false">⤢</button>
     <button type="button" class="icon-btn" id="cmdLockBtn" title="Keluar / kunci kembali" aria-label="Keluar dan kunci kembali">🔓</button>
     <button type="button" class="icon-btn" id="cmdClose" aria-label="Tutup kotak perintah">✕</button>
   </div>
-  <div class="p-body">
-    <form id="cmdForm" autocomplete="off">
-      <label for="cmdTarget">Bot tujuan</label>
-      <select id="cmdTarget"></select>
-      <p class="warn small" id="cmdWarn" hidden></p>
-      <label for="cmdText">Perintah</label>
-      <textarea id="cmdText" rows="3" placeholder="Tulis perintah untuk bot…" maxlength="500"></textarea>
-      <div class="form-foot"><span class="muted small" id="cmdCount">0/500</span><button type="submit" class="btn primary" id="cmdSend" disabled>Kirim</button></div>
-    </form>
-    <h3>Riwayat perintah <span class="chip sample">DATA CONTOH</span></h3>
-    <ul class="history" id="cmdHistory"></ul>
+  <div class="cmd-bar">
+    <label for="cmdTarget">Bot tujuan</label>
+    <select id="cmdTarget"></select>
+    <div class="seg" role="group" aria-label="Cakupan riwayat"><button type="button" id="scopeAll" class="on" aria-pressed="true">Semua</button><button type="button" id="scopeBot" aria-pressed="false">Bot ini</button></div>
   </div>
+  <div class="chat-scroll" id="cmdScroll" tabindex="0" aria-label="Riwayat percakapan" aria-live="polite"><ul class="history" id="cmdHistory"></ul></div>
+  <form id="cmdForm" class="composer" autocomplete="off">
+    <p class="warn small" id="cmdWarn" hidden></p>
+    <p class="warn small quota-note" id="quotaNote" role="status" hidden></p>
+    <div class="att-tray" id="attTray" hidden aria-label="Lampiran"></div>
+    <textarea id="cmdText" rows="4" placeholder="Tulis perintah untuk bot…" maxlength="4000" aria-label="Perintah"></textarea>
+    <div class="comp-foot">
+      <button type="button" class="icon-btn att-btn" id="cmdAttach" title="Lampirkan berkas" aria-label="Lampirkan berkas">📎</button>
+      <input type="file" id="cmdFile" multiple hidden>
+      <span class="hint small" id="cmdHint">Enter = baris baru · Ctrl+Enter = kirim</span>
+      <span class="muted small count" id="cmdCount">0/4000</span>
+      <button type="submit" class="btn primary send-btn" id="cmdSend" disabled><span>Kirim</span> <span aria-hidden="true">➤</span></button>
+    </div>
+  </form>
+  <div class="drop-veil" id="dropVeil" hidden aria-hidden="true"><div>📎 Lepaskan berkas di sini<br><small>maks. 20 MiB per berkas · hingga 10 berkas</small></div></div>
 </aside>
 
 <!-- Gerbang kata sandi (TIRUAN di prototipe) -->

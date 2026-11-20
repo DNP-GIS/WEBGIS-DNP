@@ -10,7 +10,10 @@ export const CONFIG = {
   mockPollMs: 1000,         // polling mock dipercepat agar demo terasa hidup
 
   bubbleMs: 14000,          // gelembung balasan memudar otomatis setelah ... ms
-  maxCommandLen: 500,       // batas panjang perintah (klien; Worker memvalidasi ulang: 500)
+  maxCommandLen: 4000,      // batas panjang perintah (klien; Worker memvalidasi ulang: 4000)
+  maxFileBytes: 20 * 1048576, // batas satu berkas (Worker memvalidasi ulang)
+  maxFilesPerMessage: 10,   // lampiran per pesan
+  mockUploadStepMs: 140,    // (mock) kecepatan simulasi unggah
   lockConversations: true,  // true = percakapan, riwayat & gelembung hanya diambil/ditampilkan setelah login
 
   // Hanya mode 'mock': gerbang sandi TIRUAN menerima input apa saja. Tidak ada kata sandi di sisi klien.

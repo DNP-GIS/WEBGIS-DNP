@@ -1,6 +1,7 @@
 // UI (DOM): label & gelembung terproyeksi, panel bot, kotak perintah, gerbang sandi, legenda.
 // SEMUA teks dinamis dirender dengan textContent (bukan innerHTML) — mencegah XSS dari isi pesan.
 import { STATUS, STATUS_ORDER, TEAMS, BOTS, botById, SAMPLE_TASKS } from './data.js';
+import { fmtSize, isRisky, extOf, PREVIEW_TYPES, fmtWib, fmtDayLabel, dayKey, MiB } from './files.js';
 
 const $ = (id) => document.getElementById(id);
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
@@ -150,7 +151,7 @@ export function createUI({ api, scene, config }) {
       const meta = el('div', 'meta', (m.role === 'user' ? 'Anda' : botById(m.botId).name) + ' · ' + fmtTime(m.ts));
       if (m.sample) meta.appendChild(el('span', 'chip sample', 'CONTOH'));
       if (m.role === 'user' && m.status) meta.appendChild(el('span', 'chip st-' + m.status, CMD_STATUS[m.status]));
-      d.append(meta, el('div', null, m.text)); box.appendChild(d);
+      d.append(meta, el('div', null, m.text)); if (m.files && m.files.length) d.appendChild(el('div', 'meta', '📎 ' + m.files.map((f) => `${f.name} (${fmtSize(f.size)})`).join(', '))); box.appendChild(d);
     });
     box.scrollTop = box.scrollHeight;
   }
@@ -191,46 +192,217 @@ export function createUI({ api, scene, config }) {
     BOTS.filter((b) => b.team === T.id).forEach((b) => { const o = document.createElement('option'); o.value = b.id; o.textContent = `${b.name} — ${b.short}`; g.appendChild(o); });
     sel.appendChild(g);
   });
-  const text = $('cmdText'), send = $('cmdSend');
+  const text = $('cmdText'), send = $('cmdSend'), tray = $('attTray'), scroller = $('cmdScroll');
   text.maxLength = config.maxCommandLen;
+  const MAXF = config.maxFileBytes || 20 * MiB, MAXN = config.maxFilesPerMessage || 10;
+  let scope = 'all', atts = [], outbox = [], quota = null, quotaBlock = null, uploading = false, sending = false, manualH = false, lastAutoH = 0;
+  const FILE_ST = { ready: 'Tersedia', fetched: 'Sudah diambil Vision', expired: 'Kedaluwarsa' };
+  const fileIcon = (n, t) => ((t || '').startsWith('image/') ? '🖼' : /^(zip|rar|7z|gz|tar)$/.test(extOf(n)) ? '🗜' : /^(xlsx?|csv)$/.test(extOf(n)) ? '📊' : extOf(n) === 'pdf' ? '📕' : '📄');
+
+  // ---------- area teks: tumbuh otomatis (dan bisa ditarik manual), hitung karakter
+  function autoGrow() {
+    const vh = (window.visualViewport && window.visualViewport.height) || window.innerHeight, kbd = document.body.classList.contains('kb-open'), max = Math.round(vh * (isMobile() ? (kbd ? 0.3 : 0.32) : 0.36));
+    if (manualH && Math.abs(text.offsetHeight - lastAutoH) > 4) { text.style.maxHeight = 'none'; return; }
+    text.style.height = 'auto'; const h = Math.min(Math.max(text.scrollHeight + 2, 0), max); text.style.height = h + 'px'; lastAutoH = h; manualH = false;
+  }
+  text.addEventListener('pointerup', () => { if (Math.abs(text.offsetHeight - lastAutoH) > 4) manualH = true; });
+  function setBusy() { uploading = atts.some((a) => a.state === 'queued' || a.state === 'hashing' || a.state === 'uploading'); }
   function updateForm() {
-    const n = text.value.length; $('cmdCount').textContent = `${n}/${config.maxCommandLen}`; send.disabled = !text.value.trim();
+    const n = text.value.length, cnt = $('cmdCount'); cnt.textContent = `${n}/${config.maxCommandLen}`; cnt.classList.toggle('near', n > config.maxCommandLen * 0.9 && n <= config.maxCommandLen); cnt.classList.toggle('over', n > config.maxCommandLen);
+    setBusy(); const ready = atts.filter((a) => a.state === 'ready'), bad = atts.some((a) => a.state === 'error');
+    send.disabled = sending || uploading || bad || n > config.maxCommandLen || (!text.value.trim() && !ready.length);
+    send.title = uploading ? 'Menunggu unggahan selesai…' : bad ? 'Hapus lampiran yang gagal dulu' : '';
+    sel.disabled = atts.length > 0; sel.title = atts.length ? 'Bot tujuan dikunci selama ada lampiran' : '';
     const st = api.bots[sel.value]; const w = $('cmdWarn');
     if (st && st.status === 'unmonitored') { w.hidden = false; w.textContent = '⚠ Bot ini belum dipantau (belum ada heartbeat): perintah akan tetap menunggu di antrean sampai bot aktif.'; } else w.hidden = true;
+    $('cmdAttach').disabled = !!quotaBlock || atts.length >= MAXN || sending;
+    $('cmdAttach').title = quotaBlock ? 'Kuota berkas harian habis' : 'Lampirkan berkas (maks. 20 MiB per berkas)';
+    autoGrow();
   }
-  text.addEventListener('input', updateForm); sel.addEventListener('change', updateForm);
+  text.addEventListener('input', updateForm); sel.addEventListener('change', () => { updateForm(); renderHistory(); });
   text.addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); $('cmdForm').requestSubmit(); } });
-  $('cmdForm').addEventListener('submit', async (e) => {
-    e.preventDefault(); const t = text.value.trim(); if (!t) return;
-    send.disabled = true;
-    try {
-      await api.sendCommand(sel.value, t); text.value = ''; updateForm();
-      toast(isMock ? 'Perintah masuk antrean (SIMULASI lokal).' : 'Perintah terkirim · menunggu diproses Vision.');
-      $('cmdHistory').scrollTop = 0;
-    } catch (err) {
-      if (err.code === 'UNAUTH') { closeCommand(); openGate(null, 'Sesi berakhir. Masuk lagi untuk melanjutkan.'); } else toast('Gagal mengirim: ' + err.message);
-      updateForm();
+
+  // ---------- kuota berkas (info untuk pengguna; server tetap yang memutuskan)
+  const resetTxt = (ts) => fmtWib(ts);
+  function showQuota(q, blocked) {
+    const n = $('quotaNote');
+    if (blocked) { quotaBlock = blocked; const m = (blocked.message || 'Kuota berkas harian habis.').replace(/\s*Chat teks tetap bisa dipakai\.?/, '').trim(); n.hidden = false; n.textContent = `📎 ${m} Berkas bisa dikirim lagi setelah ${resetTxt(blocked.resetAt)}. Chat teks tetap bisa dipakai.`; return; }
+    quotaBlock = null; n.hidden = true; if (!q) return;
+    const left = q.limits.filesPerDay - q.used.files;
+    if (left <= 0 || q.used.bytes >= q.limits.bytesPerDay || q.used.writes >= q.limits.writesPerDay) { showQuota(null, { message: 'Kuota berkas harian habis.', resetAt: q.resetAt }); return; }
+    if (left <= 4) { n.hidden = false; n.textContent = `📎 Sisa kuota berkas hari ini: ${left} berkas · ${fmtSize(Math.max(0, q.limits.bytesPerDay - q.used.bytes))}.`; }
+  }
+  async function refreshQuota() { if (isMock && !api.adapter.quota) return; try { quota = await api.quota(); showQuota(quota); updateForm(); } catch { /* informasi saja */ } }
+
+  // ---------- lampiran: antrean unggah satu per satu (hash di browser -> potongan -> selesai)
+  let pumping = false;
+  function addFiles(list) {
+    if (!api.isAuthed()) { toast('Masuk dulu untuk melampirkan berkas.'); return; }
+    if (quotaBlock) { toast('Kuota berkas harian habis. Chat teks tetap bisa dipakai.'); return; }
+    let added = 0;
+    for (const f of list) {
+      if (atts.length >= MAXN) { toast(`Maksimal ${MAXN} lampiran per pesan.`); break; }
+      const a = { key: 'a' + Math.random().toString(36).slice(2, 9), file: f, name: f.name || 'berkas', size: f.size, state: 'queued', progress: 0, phase: '', risky: isRisky(f.name), ac: new AbortController() };
+      if (f.size > MAXF) { a.state = 'error'; a.error = `Terlalu besar (${fmtSize(f.size)}). Maksimal ${fmtSize(MAXF)} per berkas.`; }
+      if (PREVIEW_TYPES.has(f.type) && f.size <= 8 * MiB && a.state !== 'error') { try { a.preview = URL.createObjectURL(f); } catch { /* */ } }   // hanya blob lokal di tray
+      atts.push(a); added++;
     }
+    if (added) { renderTray(); updateForm(); pump(); }
+  }
+  async function pump() {
+    if (pumping) return; pumping = true;
+    try {
+      for (;;) {
+        const a = atts.find((x) => x.state === 'queued'); if (!a) break;
+        a.state = 'hashing'; renderTray(); updateForm();
+        try {
+          const r = await api.uploadFile(a.file, sel.value, { signal: a.ac.signal, onProgress: (fr, ph) => { if (a.state === 'canceled') return; a.progress = fr; a.phase = ph; if (ph === 'upload') a.state = 'uploading'; paintAtt(a); } });
+          if (a.state === 'canceled') { api.removeFile(r.id).catch(() => {}); continue; }
+          Object.assign(a, { state: 'ready', id: r.id, serverName: r.name, sha256: r.sha256, progress: 1, risky: !!r.warn || a.risky });
+        } catch (e) {
+          if (a.state === 'canceled') continue;
+          if (e.code === 'QUOTA') { showQuota(null, { message: e.message, resetAt: e.resetAt }); atts.filter((x) => x.state === 'queued').forEach((x) => { x.state = 'error'; x.error = 'Tidak diunggah: kuota harian habis.'; }); }
+          if (e.code === 'KVLIMIT') showQuota(null, { message: e.message, resetAt: Date.now() + 3600000 });
+          if (e.code === 'UNAUTH') { atts.forEach((x) => x.preview && URL.revokeObjectURL(x.preview)); atts = []; renderTray(); updateForm(); closeCommand(); openGate(null, 'Sesi berakhir. Masuk lagi untuk melanjutkan.'); break; }
+          a.state = 'error'; a.error = e.message || 'Gagal mengunggah.';
+        }
+        renderTray(); updateForm();
+      }
+    } finally { pumping = false; }
+  }
+  function removeAtt(a) {
+    if (a.state === 'hashing' || a.state === 'uploading' || a.state === 'queued') { a.state = 'canceled'; a.ac.abort(); }
+    else if (a.state === 'ready' && a.id) api.removeFile(a.id).catch(() => {});      // batal = hapus dari server (tidak menambah tulis KV)
+    if (a.preview) URL.revokeObjectURL(a.preview);
+    atts = atts.filter((x) => x !== a); renderTray(); updateForm();
+  }
+  function paintAtt(a) {
+    const li = tray.querySelector(`[data-k="${a.key}"]`); if (!li) return;
+    const pr = li.querySelector('progress'); if (pr) pr.value = Math.round(a.progress * 100);
+    const st = li.querySelector('.as .pt'); if (st) st.textContent = attText(a);
+  }
+  const attText = (a) => a.state === 'queued' ? 'Menunggu antrean…' : a.state === 'hashing' ? 'Menghitung hash SHA-256…' : a.state === 'uploading' ? `Mengunggah ${Math.round(a.progress * 100)}%` : a.state === 'ready' ? 'Siap dikirim' : a.error || 'Gagal';
+  function renderTray() {
+    tray.replaceChildren(); tray.hidden = !atts.length;
+    for (const a of atts) {
+      const li = el('div', 'att' + (a.state === 'error' ? ' err' : '')); li.dataset.k = a.key; li.dataset.state = a.state;
+      const ic = el('div', 'ai'); if (a.preview) { const im = document.createElement('img'); im.src = a.preview; im.alt = ''; ic.appendChild(im); } else ic.textContent = fileIcon(a.name, a.file.type);
+      const b = el('div', 'ab'); b.appendChild(el('div', 'an', a.name)); b.lastChild.title = a.name;
+      const meta = el('div', 'as' + (a.state === 'error' ? ' bad' : '')); meta.append(el('span', null, fmtSize(a.size)), el('span', 'pt', attText(a)));
+      if (a.risky) meta.appendChild(el('span', 'chip f-risk', '⚠ jenis berisiko'));
+      b.appendChild(meta);
+      if (a.state === 'hashing' || a.state === 'uploading' || a.state === 'queued') { const pr = document.createElement('progress'); pr.max = 100; pr.value = Math.round(a.progress * 100); pr.setAttribute('aria-label', 'Progres unggah ' + a.name); b.appendChild(pr); }
+      const rm = el('button', 'icon-btn rm', '✕'); rm.type = 'button'; rm.setAttribute('aria-label', (a.state === 'ready' || a.state === 'error' ? 'Hapus lampiran ' : 'Batalkan unggahan ') + a.name); rm.title = a.state === 'ready' || a.state === 'error' ? 'Hapus lampiran' : 'Batalkan';
+      rm.addEventListener('click', () => removeAtt(a));
+      li.append(ic, b, rm); tray.appendChild(li);
+    }
+  }
+  $('cmdAttach').addEventListener('click', () => $('cmdFile').click());
+  $('cmdFile').addEventListener('change', (e) => { addFiles([...e.target.files]); e.target.value = ''; });
+  text.addEventListener('paste', (e) => {
+    const cd = e.clipboardData; if (!cd || !cd.files || !cd.files.length) return;
+    if (cd.getData('text/plain')) return;                                          // ada teks: tempel sebagai teks biasa
+    e.preventDefault(); addFiles([...cd.files].map((f) => (f.name && f.name !== 'image.png' ? f : new File([f], 'tempel-' + new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19) + '.' + (extOf(f.type.replace('/', '.')) || 'bin'), { type: f.type }))));
   });
-  function renderHistory() {
-    const ul = $('cmdHistory'); ul.replaceChildren();
-    api.allCommands().slice(0, 30).forEach((m) => {
-      const li = el('li'); li.tabIndex = 0;
-      const hh = el('div', 'hh'); hh.append(el('span', null, fmtTime(m.ts)), el('span', null, '→'), el('b', null, botById(m.botId).name), el('span', 'chip st-' + m.status, CMD_STATUS[m.status] || m.status));
-      if (m.sample) hh.appendChild(el('span', 'chip sample', 'CONTOH'));
-      li.append(hh, el('div', 'ht', m.text));
-      const rep = [...api.messages.values()].find((r) => r.replyTo === m.id);
-      if (rep) li.appendChild(el('div', 'hr', '↳ ' + rep.text));
-      const go = () => selectBot(m.botId); li.addEventListener('click', go); li.addEventListener('keydown', (e) => { if (e.key === 'Enter') go(); });
-      ul.appendChild(li);
-    });
+  const veil = $('dropVeil'); let dragN = 0;
+  const hasFiles = (e) => e.dataTransfer && [...(e.dataTransfer.types || [])].includes('Files');
+  cmdPanel.addEventListener('dragenter', (e) => { if (!hasFiles(e)) return; e.preventDefault(); dragN++; veil.hidden = false; });
+  cmdPanel.addEventListener('dragover', (e) => { if (hasFiles(e)) { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; } });
+  cmdPanel.addEventListener('dragleave', (e) => { if (!hasFiles(e)) return; dragN = Math.max(0, dragN - 1); if (!dragN) veil.hidden = true; });
+  cmdPanel.addEventListener('drop', (e) => { if (!hasFiles(e)) return; e.preventDefault(); dragN = 0; veil.hidden = true; addFiles([...e.dataTransfer.files]); });
+  window.addEventListener('dragover', (e) => { if (hasFiles(e) && !cmdPanel.contains(e.target)) e.preventDefault(); });
+  window.addEventListener('drop', (e) => { if (hasFiles(e) && !cmdPanel.contains(e.target)) e.preventDefault(); });   // jangan biarkan peramban MEMBUKA berkas yang dijatuhkan di luar kotak
+
+  // ---------- kirim
+  $('cmdForm').addEventListener('submit', async (e) => {
+    e.preventDefault(); const t = text.value.trim(); const ready = atts.filter((a) => a.state === 'ready'); if ((!t && !ready.length) || sending || uploading) return;
+    sending = true; updateForm();
+    const botId = sel.value, item = { key: 'o' + Date.now(), botId, text: t, files: ready.map((a) => ({ name: a.serverName || a.name, size: a.size, type: a.file.type, status: 'ready', risky: a.risky })), ts: Date.now(), state: 'sending', ids: ready.map((a) => a.id) };
+    outbox.push(item); text.value = ''; manualH = false; text.style.height = ''; atts.forEach((a) => a.preview && URL.revokeObjectURL(a.preview)); atts = []; renderTray(); renderHistory(true);
+    try {
+      await api.sendCommand(botId, t, item.ids); outbox = outbox.filter((o) => o !== item);
+      toast(isMock ? 'Perintah masuk antrean (SIMULASI lokal).' : 'Perintah terkirim · menunggu diproses Vision.');
+    } catch (err) {
+      if (err.code === 'UNAUTH') { outbox = []; closeCommand(); openGate(null, 'Sesi berakhir. Masuk lagi untuk melanjutkan.'); }
+      else { item.state = 'failed'; item.error = err.message; toast('Gagal mengirim: ' + err.message); text.value = text.value || t; }
+    }
+    sending = false; updateForm(); renderHistory(true); refreshQuota();
+  });
+
+  // ---------- riwayat: obrolan kronologis (lama di atas, baru di bawah), pemisah tanggal, kartu berkas
+  const expanded = new Set();
+  async function download(f, btn) {
+    btn.disabled = true; const old = btn.textContent; btn.textContent = 'Mengunduh…';
+    try {
+      const blob = await api.downloadFile(f); const u = URL.createObjectURL(blob), a = document.createElement('a');
+      a.href = u; a.download = f.name; a.rel = 'noopener'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 4000);
+      toast('Berkas diunduh · hash SHA-256 cocok ✓');
+    } catch (err) {
+      if (err.code === 'UNAUTH') { closeCommand(); openGate(null, 'Sesi berakhir. Masuk lagi untuk melanjutkan.'); } else toast(err.message);
+    }
+    btn.disabled = false; btn.textContent = old;
+  }
+  function fileCard(f, canDl) {
+    const st = f.status === 'ready' && f.expiresAt && f.expiresAt < Date.now() ? 'expired' : f.status;
+    const c = el('div', 'fcard'); c.dataset.status = st; c.append(el('div', 'fi', fileIcon(f.name, f.type)));
+    const b = el('div', 'fb'); const n = el('div', 'fn', f.name); n.title = f.name; const m = el('div', 'fs'); m.append(el('span', null, fmtSize(f.size)), el('span', 'chip f-' + st, FILE_ST[st] || st));
+    if (f.warn || f.risky) m.appendChild(el('span', 'chip f-risk', '⚠ jenis berisiko')); b.append(n, m); c.appendChild(b);
+    if (canDl && st === 'ready' && f.id) { const d = el('button', 'btn dl', '⬇ Unduh'); d.type = 'button'; d.setAttribute('aria-label', 'Unduh ' + f.name); d.addEventListener('click', () => download(f, d)); c.appendChild(d); }
+    return c;
+  }
+  function bubble(m, own) {
+    const wrap = el('li', 'cm ' + (own ? 'user' : 'bot') + (m.state === 'sending' ? ' pending' : '') + (m.state === 'failed' ? ' failed' : '')); wrap.dataset.id = m.id || m.key || '';
+    const mh = el('div', 'mh');
+    if (own) { mh.append(el('span', null, fmtWib(m.ts)), el('span', null, '→'), el('b', null, botById(m.botId).name)); const stt = m.state || m.status; mh.appendChild(el('span', 'chip st-' + stt, CMD_STATUS[stt] || (stt === 'sending' ? 'Mengirim…' : stt === 'failed' ? 'Gagal' : stt))); }
+    else mh.append(el('b', null, botById(m.botId).name), el('span', null, fmtWib(m.ts)));
+    if (m.sample) mh.appendChild(el('span', 'chip sample', 'CONTOH'));
+    wrap.appendChild(mh);
+    if (m.text) {
+      const key = m.id || m.key, long = m.text.length > 700 || m.text.split('\n').length > 14, bb = el('div', 'bub' + (long && !expanded.has(key) ? ' clamp' : ''), m.text); wrap.appendChild(bb);
+      if (long) { const mo = el('button', 'more', expanded.has(key) ? 'Ringkas' : 'Selengkapnya'); mo.type = 'button'; mo.addEventListener('click', () => { expanded.has(key) ? expanded.delete(key) : expanded.add(key); renderHistory(); }); wrap.appendChild(mo); }
+    }
+    if (m.files && m.files.length) { const fc = el('div', 'fcards'); m.files.forEach((f) => fc.appendChild(fileCard(f, own && m.state == null))); wrap.appendChild(fc); }
+    if (m.state === 'failed') { const r = el('button', 'more', '⚠ ' + (m.error || 'Gagal') + ' — hapus dari daftar'); r.type = 'button'; r.addEventListener('click', () => { outbox = outbox.filter((o) => o !== m); renderHistory(); }); wrap.appendChild(r); }
+    return wrap;
+  }
+  function renderHistory(stick) {
+    const ul = $('cmdHistory'); const near = stick || scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 120;
+    ul.replaceChildren();
+    const all = [...api.messages.values()].filter((m) => scope === 'all' || m.botId === sel.value).sort((a, b) => a.ts - b.ts || (a.role === 'user' ? -1 : 1)).slice(-120);
+    const rows = [...all.map((m) => ({ m, own: m.role === 'user' })), ...outbox.filter((o) => scope === 'all' || o.botId === sel.value).map((o) => ({ m: o, own: true }))];
+    let last = null;
+    for (const { m, own } of rows) {
+      const k = dayKey(m.ts); if (k !== last) { ul.appendChild(el('li', 'day-sep', fmtDayLabel(m.ts))); last = k; }
+      ul.appendChild(bubble(m, own));
+    }
+    if (near) scroller.scrollTop = scroller.scrollHeight;
+  }
+  $('scopeAll').addEventListener('click', () => setScope('all')); $('scopeBot').addEventListener('click', () => setScope('bot'));
+  function setScope(v) { scope = v; $('scopeAll').classList.toggle('on', v === 'all'); $('scopeBot').classList.toggle('on', v === 'bot'); $('scopeAll').setAttribute('aria-pressed', v === 'all'); $('scopeBot').setAttribute('aria-pressed', v === 'bot'); renderHistory(true); }
+  // ---------- perluas / kecilkan
+  function setWide(on) { cmdPanel.classList.toggle('wide', on); const b = $('cmdExpand'); b.textContent = on ? '⤡' : '⤢'; b.setAttribute('aria-pressed', on); b.setAttribute('aria-label', on ? 'Kecilkan kotak perintah' : 'Perluas kotak perintah'); updateInset(); updateForm(); renderHistory(true); }
+  $('cmdExpand').addEventListener('click', () => setWide(!cmdPanel.classList.contains('wide')));
+  // ---------- papan ketik virtual (mobile): ikuti visualViewport agar kolom ketik tidak tertutup
+  function syncViewport() {
+    const vv = window.visualViewport; if (!vv) return;
+    const kb = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
+    document.documentElement.style.setProperty('--vvh', Math.round(vv.height) + 'px'); document.documentElement.style.setProperty('--kb', kb + 'px'); document.body.classList.toggle('kb-open', kb > 80 || vv.height < window.innerHeight * 0.75); autoGrow();
+    if (kb > 80 && document.activeElement === text) setTimeout(() => { text.scrollIntoView({ block: 'nearest' }); }, 30);
+    updateInset();
+  }
+  if (window.visualViewport) { window.visualViewport.addEventListener('resize', syncViewport); window.visualViewport.addEventListener('scroll', syncViewport); }
+  window.addEventListener('resize', () => { if (cmdPanel.classList.contains('open')) autoGrow(); });
+  // hook uji: meniru papan ketik virtual (Playwright tidak punya papan ketik nyata)
+  function simulateKeyboard(px) {
+    const vh = window.innerHeight, h = px ? vh - px : vh;
+    document.documentElement.style.setProperty('--vvh', h + 'px'); document.documentElement.style.setProperty('--kb', px + 'px'); document.body.classList.toggle('kb-open', px > 80); autoGrow(); updateInset();
   }
   function openCommand(botId) {
     if (!api.isAuthed()) { openGate(botId); return; }
     if (botId) sel.value = botId; else if (selected) sel.value = selected;
     if (isMobile()) closeBot(false);
     cmdPanel.classList.add('open'); cmdPanel.setAttribute('aria-hidden', 'false');
-    $('cmdLock').textContent = '🔓'; updateForm(); renderHistory(); updateInset();
+    $('cmdLock').textContent = '🔓'; updateForm(); renderHistory(true); updateInset(); refreshQuota();
     if (!isMobile()) setTimeout(() => text.focus({ preventScroll: true }), 50);
   }
   function closeCommand(upd = true) { cmdPanel.classList.remove('open'); cmdPanel.setAttribute('aria-hidden', 'true'); if (upd) updateInset(); }
@@ -239,7 +411,7 @@ export function createUI({ api, scene, config }) {
   $('cmdLockBtn').addEventListener('click', () => { closeCommand(); api.logout(); toast(isMock ? 'Kotak perintah dikunci kembali.' : 'Anda sudah keluar. Percakapan terkunci.'); });
   api.on('auth', ({ ok, reason }) => {
     $('cmdLock').textContent = ok ? '🔓' : '🔒';
-    if (!ok) { clearBubbles(); closeCommand(); if (reason === 'expired') { toast('Sesi berakhir. Masuk lagi untuk melihat percakapan.'); } }
+    if (!ok) { clearBubbles(); closeCommand(); atts.forEach((a) => a.preview && URL.revokeObjectURL(a.preview)); atts = []; outbox = []; renderTray(); if (reason === 'expired') { toast('Sesi berakhir. Masuk lagi untuk melihat percakapan.'); } }
     renderThread(); renderConn(); if (selected) renderBotPanel();
   });
 
@@ -310,7 +482,7 @@ export function createUI({ api, scene, config }) {
       const p = open(botPanel) ? botPanel : open(cmdPanel) ? cmdPanel : null;
       scene.setInset({ top, bottom: p ? Math.min(vh * 0.52, p.offsetHeight) + 6 : legendH });
     } else {
-      scene.setInset({ top, bottom: legendH, right: open(botPanel) ? botPanel.offsetWidth + 24 : 0, left: open(cmdPanel) ? cmdPanel.offsetWidth + 24 : 0 });
+      scene.setInset({ top, bottom: legendH, right: open(botPanel) ? botPanel.offsetWidth + 24 : 0, left: open(cmdPanel) ? Math.min(cmdPanel.offsetWidth + 24, window.innerWidth * 0.55) : 0 });
     }
   }
   window.addEventListener('resize', updateInset);
@@ -344,5 +516,6 @@ export function createUI({ api, scene, config }) {
     get commandOpen() { return cmdPanel.classList.contains('open'); },
     get gateOpen() { return !gate.hidden; },
     applyState,
+    simulateKeyboard, addFiles, setWide, get attachments() { return atts.map((a) => ({ name: a.name, size: a.size, state: a.state, progress: a.progress, id: a.id, error: a.error })); },
   };
 }
