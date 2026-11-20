@@ -14,6 +14,11 @@
  * Saklar: cfg.noRange = 'hatch-all' (default v7r2) | 'legacy' (perilaku MJ asli: tanpa rentang = simbologi Code lama).
  * Ganti lewat SymbologiTanggal.configure({noRange:'legacy'}) bila perlu.
  * Lihat NOTES_SIMBOLOGI_V7R2.md (untuk Meridian-J).
+ * === TAMBAHAN v7r4 (jangan sunting /workspace/webgis_v7_mj/) ===
+ * Jenis titik tanam (Planting, Lubang Tanam, Stake Out Titik Tanam, OFF Planting) pada
+ * layer titik_tanam_realisasi: DateRange mengatur solid/arsir lewat sprite kanvas di atlas.js.
+ * Plan Titik Tanam = referensi, tanpa simbologi tanggal (tetap cincin, tetap ON).
+ * Status Lahan dan STO tidak ditangani modul ini (bukan kegiatan berprogres tanggal / aturan lama).
  * Modul murni (bisa diuji di Node); bagian DOM (pola SVG, widget rentang) hanya jalan bila ada `document`. */
 (function(root,factory){
  if(typeof module==='object'&&module.exports)module.exports=factory();
@@ -43,7 +48,12 @@ const JENIS=[
  {key:'main_road',label:'Main Road',layers:['jalan_realisasi'],match:['main road'],color:'#40C4FF'},
  {key:'collection_road',label:'Collection Road',layers:['jalan_realisasi'],match:['collection road'],color:'#C6FF00'},
  {key:'perimeter_road',label:'Perimeter Road',layers:['jalan_realisasi'],match:['perimeter road'],color:'#D580FF'},
- {key:'maintenance_road',label:'Maintenance Road',layers:['jalan_maintenance'],byLayer:true,color:'#B0BEC5',noDate:true}
+ {key:'maintenance_road',label:'Maintenance Road',layers:['jalan_maintenance'],byLayer:true,color:'#B0BEC5',noDate:true},
+ // v7r4: titik tanam (warna = kelas ArcGIS / p17_cfg). Plan tidak masuk (referensi, tanpa tanggal).
+ {key:'planting',label:'Planting',layers:['titik_tanam_realisasi'],match:['planting'],color:'#4CE600'},
+ {key:'lubang_tanam',label:'Lubang Tanam',layers:['titik_tanam_realisasi'],match:['lubang tanam'],color:'#A87000'},
+ {key:'stakeout_tanam',label:'Stake Out Titik Tanam',layers:['titik_tanam_realisasi'],match:['stake out titik tanam'],color:'#005CE6'},
+ {key:'off_planting',label:'OFF Planting',layers:['titik_tanam_realisasi'],match:['off planting'],color:'#E60000'}
 ];
 const ORDER=['land_clearing','rumpukan','drain_realisasi','jalan_realisasi','jalan_maintenance'];
 
@@ -156,12 +166,17 @@ function legendRows(layerId,feats){
  const r=getRange(layerId),st=stats(layerId,feats),rows=[];
  if(!rangeOn(layerId)){
   if(cfg.noRange!=='hatch-all')return null;
-  JENIS.filter(j=>j.layers.includes(layerId)&&!j.noDate&&st[j.key]).forEach(j=>{
-   const s=st[j.key],c=colorOf(j);
-   rows.push({id:j.key+':hatch',jenisKey:j.key,kind:'hatch',label:j.label,title:`Tanpa rentang terpilih: ${s.total} fitur tampil arsir (gaya Code 0). Pilih rentang agar fitur dalam rentang solid terang.`,color:c,n:s.total,line:s.line})});
+  const listed=Array.isArray(feats);
+  const used=j=>!listed||!!st[j.key];
+  const tot=j=>(st[j.key]&&st[j.key].total)||0;
+  JENIS.filter(j=>j.layers.includes(layerId)&&!j.noDate&&used(j)).forEach(j=>{
+   const s=st[j.key]||{total:0,line:false},c=colorOf(j);
+   rows.push({id:j.key+':hatch',jenisKey:j.key,kind:'hatch',label:j.label,title:`Tanpa rentang terpilih: ${s.total||''} fitur tampil arsir (gaya Code 0). Pilih rentang agar fitur dalam rentang solid terang.`,color:c,n:s.total,line:!!s.line})});
   return rows}
- JENIS.filter(j=>j.layers.includes(layerId)&&!j.noDate&&st[j.key]).forEach(j=>{
-  const s=st[j.key],c=colorOf(j);
+ const listed=Array.isArray(feats);
+ const used=j=>!listed||!!st[j.key];
+ JENIS.filter(j=>j.layers.includes(layerId)&&!j.noDate&&used(j)).forEach(j=>{
+  const s=st[j.key]||{in:0,out_before:0,out_after:0,nodate:0,line:false},c=colorOf(j);
   rows.push({id:j.key+':solid',jenisKey:j.key,kind:'solid',label:`${j.label} ${fmtRange(r.from,r.to)}`,title:`${s.in} fitur dengan Tanggal dalam rentang`,color:c,n:s.in,line:s.line});
   const hl=r.from?`${j.label} Hingga ${fmtDate(addDays(r.from,-1))}`:`${j.label} Setelah ${fmtDate(r.to)}`;
   const note=`${s.out_before+s.out_after+s.nodate} fitur di luar rentang: ${s.out_before} sebelum, ${s.out_after} sesudah, ${s.nodate} tanpa tanggal`;
@@ -205,7 +220,8 @@ function restore(){if(typeof sessionStorage==='undefined')return null;try{const 
 // ------------------------------------------------------------------ pasang ke Atlas (opsional)
 /** Bangun ulang layer progres yang sudah dimuat setiap rentang berubah. `atlas` = window.Atlas. */
 function attach(atlas){if(!atlas||!atlas.st||!atlas.setFeatures)return()=>{};
- const un=onChange(()=>{ORDER.forEach(id=>{const s=atlas.st[id];if(!s||!s.layer||!s.data||!s.data.features)return;atlas.setFeatures(id,s.feats||s.data.features)})});
+ const un=onChange(()=>{ORDER.forEach(id=>{const s=atlas.st[id];if(!s||!s.layer||!s.data||!s.data.features)return;atlas.setFeatures(id,s.feats||s.data.features)});
+  if(typeof atlas.refreshPointSymbology==='function')atlas.refreshPointSymbology()});
  return un}
 
 // ------------------------------------------------------------------ widget rentang (opsional)

@@ -3,11 +3,12 @@
 //   KEK = PBKDF2-SHA256(password NFKC, salt per-user, iter) ; DEK(256 bit) di-wrap AES-GCM(KEK, iv, AAD="dnp-webgis|v1|wrap|<user>")
 //   File data/<nama>.enc = "DNPE\x01" + iv(12) + AES-GCM(DEK, iv, AAD="dnp-webgis|v1|file|<nama>")
 // Verifikasi password = keberhasilan unwrap (tag GCM). DEK hanya ada di memori sebagai CryptoKey non-extractable;
-// tidak ada yang disimpan di sessionStorage/localStorage (reload = login ulang). Hanya penghitung throttling gagal-login
-// disimpan di sessionStorage.
+// DEK/password/token tidak pernah disimpan di sessionStorage/localStorage (reload = login ulang).
+// State tampilan & filter (bukan kredensial) disimpan di localStorage dnp_v7_state_<user> dan tetap ada setelah logout.
+// Penghitung throttling gagal-login disimpan di sessionStorage (dnp_f).
 (function(){
 'use strict';
-const VER='202611210100',ITER_DUMMY=600000,THROTTLE_KEY='dnp_f';
+const VER='202611210300',ITER_DUMMY=600000,THROTTLE_KEY='dnp_f';
 const MSG_BAD='User atau password salah';
 const te=new TextEncoder();
 const $=id=>document.getElementById(id);
@@ -60,6 +61,7 @@ async function getJSON(path){
  }
 }
 function logout(){
+ try{if(window.UiState&&UiState.saveNow)UiState.saveNow()}catch(e){}
  DEK=null;USER=null;
  try{Object.keys(sessionStorage).forEach(k=>{if(k!==THROTTLE_KEY)sessionStorage.removeItem(k)})}catch(e){}
  location.reload();
@@ -79,7 +81,7 @@ function applyLock(){
 
 // ---------- UI login ----------
 const form=$('loginForm'),msg=$('lgMsg');let busy=false;
-const SCRIPTS=['atlas_cfg.js','p17_cfg.js','js/basemap_cfg.js','js/basemap.js','js/daterange.js','js/kpi_tanggal.js','js/symbology_date.js','app.js','analytics.js','atlas.js','kegiatan.js','locate.js','layout.js'];
+const SCRIPTS=['atlas_cfg.js','p17_cfg.js','js/basemap_cfg.js','js/basemap.js','js/daterange.js','js/kpi_tanggal.js','js/symbology_date.js','js/state.js','app.js','analytics.js','atlas.js','kegiatan.js','locate.js','layout.js'];
 let extrasDone;window.EXTRAS_READY=new Promise(r=>extrasDone=r);   // app.js menunggu analytics.js & locate.js agar hook Analytics tersedia saat data tiba
 function loadScripts(){return SCRIPTS.reduce((p,s)=>p.then(()=>new Promise((res,rej)=>{const e=document.createElement('script');e.src=s+'?v='+VER;e.onload=res;e.onerror=()=>rej(new Error('Gagal memuat '+s));document.head.appendChild(e)})),Promise.resolve())}
 function showMsg(t,cls){msg.textContent=t;msg.className='lg-msg '+(cls||'')}

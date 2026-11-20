@@ -12,7 +12,7 @@ const tglLab=d=>{const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(d);return m?`${+m[3]} 
 let map,layers={},currentId=null,waybackDate=null,ctlEl=null;
 
 function loadStore(){try{return JSON.parse(sessionStorage.getItem(KEY())||'null')}catch(e){return null}}
-function saveStore(){try{sessionStorage.setItem(KEY(),JSON.stringify({v:1,id:currentId,wayback:waybackDate}))}catch(e){}}
+function saveStore(){try{sessionStorage.setItem(KEY(),JSON.stringify({v:1,id:currentId,wayback:waybackDate}))}catch(e){}if(window.UiState&&UiState.save)UiState.save()}
 
 function mkTile(url,opt){
   const o=Object.assign({maxZoom:MZ(),minZoom:0,errorTileUrl:''},opt||{});

@@ -84,7 +84,7 @@ function rowBusy(id,b){document.querySelectorAll('.atl-l[data-id="'+id+'"]').for
 function load(id){const s=A.st[id];if(s.promise)return s.promise;const L=LAY[id];s.t0=performance.now();loadNames.add(dispName(L));rowBusy(id,true);chip();
  s.promise=(A.pre[id]?Promise.resolve(A.pre[id]):Vault.getJSON('data/'+L.file)).then(d=>{
    if(L.fmt==='pts'){d=decodePts(d)}
-   s.data=d;if(L.fmt==='pts'){s.pts=d;assignCls(L,d,s.flt)}
+   s.data=d;if(L.fmt==='pts'){s.pts=d;assignCls(L,d,s.flt);assignDateStyle(L,d)}
    s.layer=buildLayer(L,L.fmt==='pts'?d:(s.feats?{type:'FeatureCollection',features:s.feats}:d));s.loadMs=Math.round(performance.now()-s.t0);return s},e=>{s.promise=null;s.error=e;throw e})
   .finally(()=>{loadNames.delete(dispName(L));rowBusy(id,false);chip()});
  return s.promise}
@@ -165,6 +165,7 @@ function saveLgStore(){clearTimeout(lgSaveT);lgSaveT=setTimeout(()=>{
   Object.keys(A.st).forEach(id=>{layers[id]={on:!!A.st[id].own,op:+(LAY[id].op==null?1:LAY[id].op)}});
   nodes.forEach((n,i)=>{groups[n.name+'@'+i]=!!n.on});
   try{sessionStorage.setItem(LG_STORE,JSON.stringify({v:1,layers,groups,collapsed:!!lgState.all}))}catch(e){}
+  if(window.UiState&&UiState.save)UiState.save();
 },40)}
 function restoreLgStore(){
   const st=loadLgStore();if(!st)return;
@@ -189,6 +190,23 @@ function setGroupOn(i,on){const n=nodes[i];if(!n)return;
 function hideAll(){nodes.forEach(n=>{n.on=true});Object.values(A.st).forEach(s=>s.own=false);applyAll();saveLgStore()}
 function showAll(){nodes.forEach(n=>{n.on=true;n.collapsed=false});Object.values(A.st).forEach(s=>s.own=true);applyAll();saveLgStore()}
 function legendClassRows(id){const L=LAY[id];
+ if(id==='titik_tanam_realisasi'){
+  const order=['Planting','Lubang Tanam','Stake Out Titik Tanam','Plan Titik Tanam','OFF Planting'];
+  const classRow=key=>{const c=(L.classes||[]).find(x=>x.key===key);return c&&c.drawn?{label:c.label,c}:null};
+  const SD=SDm();
+  if(SD&&SD.handles(id)&&SD.isActive(id)){
+   const rr=SD.legendRows(id,null)||[];
+   const by={};rr.forEach(r=>{(by[r.jenisKey]=by[r.jenisKey]||[]).push({label:r.label,sd:r})});
+   const keyOf={planting:'Planting',lubang_tanam:'Lubang Tanam',stakeout_tanam:'Stake Out Titik Tanam',off_planting:'OFF Planting'};
+   const out=[];
+   order.forEach(key=>{
+    if(key==='Plan Titik Tanam'){const r=classRow(key);if(r)out.push(r);return}
+    const jk=Object.keys(keyOf).find(k=>keyOf[k]===key);
+    if(jk&&by[jk])out.push(...by[jk]);
+    else{const r=classRow(key);if(r)out.push(r)}
+   });
+   return out}
+  return order.map(classRow).filter(Boolean)}
  {const SD=SDm();if(SD&&SD.handles(id)&&SD.isActive(id)){const st=A.st[id],fs=st&&(st.feats||(st.data&&st.data.features))||[],rr=SD.legendRows(id,fs);if(rr&&rr.length)return rr.map(r=>({label:r.label,sd:r}))}}
  if(L.p17)return L.render==='simple'?[]:L.classes.filter(c=>c.drawn&&c.n>0).map(c=>({label:c.label,c}));
  if(L.id==='genangan_air')return L.classes.filter(c=>c.drawn&&c.n>0).map(c=>({label:c.key==='default'?'Semua nilai lain':'Luas '+nf(+c.key,0)+' m²',c}));
@@ -203,11 +221,11 @@ function legendLayer(id,d){const L=LAY[id],s=A.st[id],cr=legendClassRows(id),key
  const open=lgState[key]!=null?lgState[key]:false;
  const classes=(eff&&open&&cr.length)?cr.map(r=>r.sd?SDm().legendRowHtml(r.sd,d+1):`<div class="lg-row lg-cr" style="--d:${d+1}"><i class="lg-sw">${swatchClass(id,r.c)}</i><span>${esc(r.label)}</span></div>`).join('')+(L.lnote?`<div class="lg-note">${esc(L.lnote)}</div>`:''):'';
  const car=cr.length?`<button type="button" class="lg-lh" data-lk="${key}" aria-expanded="${!!(eff&&open)}" aria-label="Kelas ${esc(dispName(L))}" ${eff?'':'disabled'}><i class="lg-car${eff&&open?' open':''}">${ICO.car}</i></button>`:'';
- return `<div class="lg-lay${eff?'':' dim'}" data-id="${id}" style="--d:${d}"><div class="lg-lay-h">${car}<label><input type="checkbox" data-l="${id}"${s&&s.own?' checked':''}>${swatch(id)}<span class="atl-n">${esc(dispName(L))}</span></label>${opSlider(id)}</div>${classes}</div>`}
+ return `<div class="lg-lay${eff?'':' dim'}" data-id="${id}" style="--d:${d}"><div class="lg-lay-h">${car}<label><input type="checkbox" data-l="${id}"${s&&s.own?' checked':''}>${swatch(id)}<span class="atl-n">${esc(dispName(L))}</span></label>${opSlider(id)}${zoomBtn('l',id)}</div>${classes}</div>`}
 function legendNode(n,d,parts){if(n.t==='l'){parts.push(legendLayer(n.id,d));return}
  const i=nodes.indexOf(n),key='g:'+n.name,open=lgState[key]!=null?lgState[key]:!mobile();
  const st=groupCheckState(i),chk=st==='all'?' checked':'';
- parts.push(`<div class="lg-grp" data-g="${i}" style="--d:${d}"><div class="lg-gh${d?' lg-sh':''}"><button type="button" data-lk="${key}" aria-expanded="${open}"><i class="lg-car${open?' open':''}">${ICO.car}</i></button><label><input type="checkbox" data-gc="${i}"${chk}><span class="atl-n">${esc(n.name)}</span></label></div>`);
+ parts.push(`<div class="lg-grp" data-g="${i}" style="--d:${d}"><div class="lg-gh${d?' lg-sh':''}"><button type="button" data-lk="${key}" aria-expanded="${open}"><i class="lg-car${open?' open':''}">${ICO.car}</i></button><label><input type="checkbox" data-gc="${i}"${chk}><span class="atl-n">${esc(n.name)}</span></label>${zoomBtn('g',i)}</div>`);
  if(open){n.ch.forEach(c=>legendNode(c,d+1,parts));if(n.name==='01 PROGRESS')parts.push('<div class="lg-note">Buka panah di nama layer untuk rincian kelas simbologi.</div>')}
  parts.push('</div>')}
 function legend(){const host=document.getElementById('lgAtlas');if(!host)return;
@@ -218,9 +236,10 @@ function legend(){const host=document.getElementById('lgAtlas');if(!host)return;
 }
 function bindLegend(lg){
  lg.addEventListener('click',e=>{
+  const z=e.target.closest('[data-z]');if(z){e.preventDefault();e.stopPropagation();if(z.dataset.z==='l')zoomToLayer(z.dataset.zv);else if(z.dataset.z==='g')zoomToGroup(+z.dataset.zv);return}
   const all=e.target.closest('[data-lg]');if(all){e.preventDefault();e.stopPropagation();all.dataset.lg==='all'?showAll():hideAll();legend();return}
   const b=e.target.closest('[data-lk]');if(!b||b.disabled)return;
-  if(e.target.closest('input,label,.lg-op'))return;
+  if(e.target.closest('input,label,.lg-op,.lg-zbtn'))return;
   const k=b.dataset.lk;lgState[k]=!(lgState[k]!=null?lgState[k]:(k[0]==='l'?false:!mobile()));legend()});
  lg.addEventListener('change',e=>{const t=e.target;
   if(t.classList.contains('lg-op')||t.dataset.op){setOpacity(t.dataset.op,t.value/100);t.title='Opasitas '+t.value+'%';return}
@@ -292,12 +311,17 @@ function assignCls(L,P,flt){const cls=new Int16Array(P.n);
  const ord=new Int32Array(m);for(let i=0;i<P.n;i++)if(cls[i]>=0)ord[start[cls[i]]++]=i;P.ord=ord}
 const mercY=(lat,k)=>{const s=Math.sin(lat*Math.PI/180);return(0.5-Math.log((1+s)/(1-s))/(4*Math.PI))*k};
 const PtLayer=window.L.Layer.extend({
- initialize(Lc,P){this.Lc=Lc;this.P=P;this.spr=Lc.classes.map(c=>this._sprite(c))},
+ initialize(Lc,P){this.Lc=Lc;this.P=P;this.spr=Lc.classes.map(c=>this._sprite(c));this.sprH=Lc.classes.map(c=>this._hatchSprite(c))},
  _sprite(c){const dpr=Math.min(window.devicePixelRatio||1,2),sy=c.sym;if(!sy)return null;
   if(sy.t==='c'){const d=(sy.r*2+sy.w)*SC+1.5,cv=document.createElement('canvas');cv.width=cv.height=Math.ceil(d*dpr);const g=cv.getContext('2d');g.scale(dpr,dpr);
    g.beginPath();g.arc(d/2,d/2,sy.r*SC,0,7);g.fillStyle=sy.f;g.fill();g.lineWidth=Math.max(sy.w*SC,.5);g.strokeStyle=sy.s;g.stroke();return{cv,w:d,h:d,ready:true}}
   const sz=sy.w*SC,px=Math.ceil(sz*dpr*3),svg=sy.svg.replace(/width="[^"]*" height="[^"]*"/,`width="${px}" height="${px}"`),im=new Image(),o={cv:im,w:sz,h:sz,ready:false};
   im.onload=()=>{o.ready=true;this.redraw()};im.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);return o},
+ _hatchSprite(c){const sy=c.sym;if(!sy)return null;if(sy.t!=='c')return this._sprite(c);
+  const dpr=Math.min(window.devicePixelRatio||1,2),d=(sy.r*2+sy.w)*SC+1.5,cv=document.createElement('canvas');cv.width=cv.height=Math.ceil(d*dpr);const g=cv.getContext('2d');g.scale(dpr,dpr);
+  g.save();g.beginPath();g.arc(d/2,d/2,sy.r*SC,0,7);g.clip();g.strokeStyle=sy.f;g.lineWidth=Math.max(.8,sy.w*SC);const gap=2.1;
+  for(let x=-d;x<d*2;x+=gap){g.beginPath();g.moveTo(x,0);g.lineTo(x+d,d);g.stroke()}
+  g.restore();g.beginPath();g.arc(d/2,d/2,sy.r*SC,0,7);g.lineWidth=Math.max(sy.w*SC,.5);g.strokeStyle=sy.s;g.stroke();return{cv,w:d,h:d,ready:true}},
  onAdd(m){const c=this._c=document.createElement('canvas');c.className='atl-pc';c.style.cssText='position:absolute;pointer-events:none';m.getPane(pane(this.Lc)).appendChild(c);
   m.on('moveend resize zoomend',this._draw,this);m.on('zoomstart',this._hide,this);this._draw()},
  onRemove(m){m.off('moveend resize zoomend',this._draw,this);m.off('zoomstart',this._hide,this);this._c.remove()},
@@ -308,7 +332,7 @@ const PtLayer=window.L.Layer.extend({
   if(c.width!==w*dpr||c.height!==h*dpr){c.width=w*dpr;c.height=h*dpr;c.style.width=w+'px';c.style.height=h+'px'}
   window.L.DomUtil.setPosition(c,tl);c.style.visibility='';const g=c.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,w,h);
   const o=m.getPixelOrigin(),k=256*Math.pow(2,z),P=this.P,cls=P.cls,ox=o.x+tl.x,oy=o.y+tl.y;let n=0;
-  const ord=P.ord;for(let q=0;q<ord.length;q++){const i=ord[q],ci=cls[i];const sp=this.spr[ci];if(!sp||!sp.ready)continue;
+  const sd=P.sd,ord=P.ord;for(let q=0;q<ord.length;q++){const i=ord[q],ci=cls[i];const sp=(sd&&sd[i]===0?this.sprH[ci]:this.spr[ci]);if(!sp||!sp.ready)continue;
    const x=(P.lon[i]+180)/360*k-ox;if(x<-8||x>w+8)continue;const y=mercY(P.lat[i],k)-oy;if(y<-8||y>h+8)continue;
    g.drawImage(sp.cv,x-sp.w/2,y-sp.h/2,sp.w,sp.h);n++}
   this.drawn=n;this.drawMs=Math.round((performance.now()-t0)*10)/10}});
@@ -321,6 +345,13 @@ A.rowProps=rowProps;A.pre={};
 const featsOf=id=>{const s=A.st[id];return s.feats||s.data.features};
 A.setFeatures=(id,fs)=>{const s=A.st[id];s.feats=fs;if(!s.layer)return;const was=s.added;if(was)map.removeLayer(s.layer);
  s.layer=buildLayer(LAY[id],{type:'FeatureCollection',features:fs});if(was)s.layer.addTo(map);scheduleLegend()};
+function assignDateStyle(L,P){const SD=SDm();if(!P)return;if(!SD||!SD.handles(L.id)||!SD.isActive(L.id)){P.sd=null;return}
+ const sd=new Int8Array(P.n),nameCol=P.cols.Name,dateCol=P.cols.Tanggal;
+ const val=(c,i)=>c?(c.d?(c.i[i]<0?null:c.d[c.i[i]]):c.v[i]):null;
+ for(let i=0;i<P.n;i++){const props={Name:val(nameCol,i),Tanggal:val(dateCol,i)};const j=SD.jenisOf(L.id,props);
+  if(!j||j.noDate){sd[i]=2;continue}const b=SD.bucket(L.id,props);sd[i]=(!b||b!=='in')?0:1}
+ P.sd=sd}
+A.refreshPointSymbology=function(){Object.keys(A.st).forEach(id=>{const s=A.st[id],L=LAY[id];if(!s||!s.pts||!L||L.fmt!=='pts')return;assignDateStyle(L,s.pts);if(s.layer&&s.layer.redraw)s.layer.redraw()});scheduleLegend()};
 A.setPointFilter=(id,fn)=>{const s=A.st[id],L=LAY[id];s.flt=fn;if(s.pts){assignCls(L,s.pts,fn);s.layer.redraw()}};
 // ---------------- tabel atribut (popup identify) ----------------
 const HIDE_F=new Set(['lp','style_key']);
@@ -427,6 +458,82 @@ function identify(e){
  const t=e.originalEvent&&e.originalEvent.target;if(t&&t.closest&&t.closest('.leaflet-interactive,.leaflet-marker-icon,.leaflet-popup,.leaflet-control,#locTop'))return;
  const hs=hitsAt(e);if(!hs.length)return;showAttr(e.latlng,hs)}
 // ---------------- init ----------------
+
+// ---------------- zoom ke layer / grup ----------------
+const ZICO='<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+function zoomBtn(kind,val){return `<button type="button" class="lg-zbtn" data-z="${kind}" data-zv="${esc(String(val))}" title="Zoom ke layer" aria-label="Zoom ke layer">${ZICO}</button>`}
+function zoomMax(){let z=19;if(window.Basemap&&typeof Basemap.maxNativeZoom==='function'&&Basemap.id){const n=Basemap.maxNativeZoom(Basemap.id);if(n)z=Math.min(z,n)}return z}
+function atlToast(msg){
+ if(!msg)return;
+ const loc=document.getElementById('locToast'),tx=document.getElementById('locToastTx');
+ if(loc&&tx){tx.textContent=msg;loc.className='loc-toast info';loc.hidden=false;clearTimeout(atlToast._t);atlToast._t=setTimeout(()=>{loc.hidden=true},4200);return}
+ let el=document.getElementById('atlToast');
+ if(!el&&map){el=document.createElement('div');el.id='atlToast';el.className='atl-toast';el.setAttribute('role','status');el.setAttribute('aria-live','polite');map.getContainer().appendChild(el)}
+ if(!el)return;el.textContent=msg;el.hidden=false;clearTimeout(atlToast._t);atlToast._t=setTimeout(()=>{el.hidden=true},4200)}
+function zoomPred(id){
+ const K=window.Kegiatan,DR=window.DateRange;
+ const r=DR&&DR.getRange?DR.getRange():{from:'',to:''};
+ let f=null;
+ if(K&&K.sel&&K.ACT&&K.fltOf&&K.lyrIds){const a=K.ACT[K.sel];if(a&&K.lyrIds(a).includes(id))f=K.fltOf(a.id)}
+ /* DateRange: hanya fitur dalam rentang. Layer/fitur tanpa Tanggal (Status Lahan, Plan)
+  * tidak masuk extent terfilter → toast + extent penuh. */
+ return p=>{
+  if(f&&K.matchFltBase&&!K.matchFltBase(p,f))return false;
+  if(r.from||r.to){const tg=p.Tanggal||'';if(!tg)return false;if(r.from&&tg<r.from)return false;if(r.to&&tg>r.to)return false}
+  return true};
+}
+function featBounds(id,pred){
+ const s=A.st[id],L=LAY[id];if(!s||!L)return null;
+ if(L.fmt==='pts'){
+  const P=s.pts;if(!P)return null;
+  let minLat=90,maxLat=-90,minLng=180,maxLng=-180,n=0;
+  for(let i=0;i<P.n;i++){
+   if(P.cls&&P.cls[i]<0)continue;
+   if(pred&&!pred(rowProps(P,i)))continue;
+   const la=P.lat[i],lo=P.lon[i];if(la<minLat)minLat=la;if(la>maxLat)maxLat=la;if(lo<minLng)minLng=lo;if(lo>maxLng)maxLng=lo;n++;
+  }
+  return n?{b:window.L.latLngBounds([minLat,minLng],[maxLat,maxLng]),n}:null}
+ const fs=(s.feats||(s.data&&s.data.features))||[];
+ let b=null,n=0;
+ const walk=(x,acc)=>{if(typeof x[0]==='number'){acc[0]=Math.min(acc[0],x[1]);acc[1]=Math.min(acc[1],x[0]);acc[2]=Math.max(acc[2],x[1]);acc[3]=Math.max(acc[3],x[0])}else x.forEach(y=>walk(y,acc))};
+ fs.forEach(f=>{if(!f||!f.geometry)return;if(pred&&!pred(f.properties||{}))return;const acc=[90,180,-90,-180];walk(f.geometry.coordinates,acc);if(acc[0]>acc[2])return;const bb=window.L.latLngBounds([acc[0],acc[1]],[acc[2],acc[3]]);b=b?b.extend(bb):bb;n++});
+ return n?{b,n}:null}
+function fitZoom(b,note){
+ if(!b||!map)return;if(note)atlToast(note);
+ const pad=(window.matchMedia&&matchMedia('(max-width:760px)').matches)?36:48;
+ map.fitBounds(b,{padding:[pad,pad],maxZoom:zoomMax(),animate:true})}
+async function zoomToLayer(id){
+ const L=LAY[id],s=A.st[id];if(!L||!s)return;
+ const notes=[];
+ if(!s.own||!effective(id)){setLayerOn(id,true);notes.push('Layer '+dispName(L)+' dinyalakan.')}
+ try{if(!(s.pts||(s.data&&s.data.features)))await load(id)}catch(e){atlToast('Gagal memuat layer.');return}
+ const pred=zoomPred(id);let r=featBounds(id,pred),usedFull=false;
+ if(!r){r=featBounds(id,null);usedFull=true;if(r)notes.push('Tidak ada fitur dalam filter. Menampilkan seluruh layer.')}
+ if(!r){atlToast('Layer belum punya fitur untuk di-zoom.');return}
+ fitZoom(r.b,notes.join(' '))}
+async function zoomToGroup(i){
+ const n=nodes[i];if(!n)return;
+ const ids=layerIdsOf(n);
+ if(groupCheckState(i)==='none'){setGroupOn(i,true);atlToast('Grup '+n.name+' dinyalakan.')}
+ try{await Promise.all(ids.map(id=>load(id).catch(()=>null)))}catch(e){}
+ let b=null;
+ ids.forEach(id=>{const r=featBounds(id,zoomPred(id));if(r)b=b?b.extend(r.b):r.b});
+ if(!b){ids.forEach(id=>{const r=featBounds(id,null);if(r)b=b?b.extend(r.b):r.b});if(b){fitZoom(b,'Tidak ada fitur dalam filter. Menampilkan seluruh grup.');return}}
+ if(!b){atlToast('Tidak ada fitur untuk di-zoom.');return}
+ fitZoom(b)}
+async function zoomToAct(actId){
+ const K=window.Kegiatan;if(!K||!K.ACT||!K.lyrIds)return;
+ const a=K.ACT[actId];if(!a)return;
+ const ids=K.lyrIds(a);
+ await Promise.all(ids.map(id=>zoomEnsure(id)));
+ // if several layers, union; reuse group logic
+ let b=null,empty=false;
+ ids.forEach(id=>{const r=featBounds(id,zoomPred(id));if(r)b=b?b.extend(r.b):r.b});
+ if(!b){empty=true;ids.forEach(id=>{if(!A.st[id]||!A.st[id].own)setLayerOn(id,true);const r=featBounds(id,null);if(r)b=b?b.extend(r.b):r.b})}
+ if(!b){atlToast('Tidak ada fitur untuk di-zoom.');return}
+ fitZoom(b,empty?'Tidak ada fitur dalam filter. Menampilkan seluruh layer.':'')}
+function zoomEnsure(id){if(!A.st[id])return Promise.resolve();if(!A.st[id].own||!effective(id))setLayerOn(id,true);if(A.st[id].pts||(A.st[id].data&&A.st[id].data.features))return Promise.resolve();return load(id).catch(()=>null)}
+
 A.init=function(o){
  map=o.map;A.map=map;ensureDefs();
  C.tree.forEach(t=>indexTree(t,[]));restoreLgStore();
@@ -436,12 +543,16 @@ A.init=function(o){
  // yang paling berat (Jalan Lokal / Sungai) dimuat paling akhir agar peta & dashboard tampil lebih dulu
  const late=new Set(['jalan_lokal','sungai_ln_50k']);const first=C.order.filter(i=>!late.has(i)),last=C.order.filter(i=>late.has(i));
  first.forEach(apply);setTimeout(()=>last.forEach(apply),60);
+ if(window.UiState&&UiState.hook)UiState.hook();
  return A.ctl};
 A.fitLegend=fitLegend;
 A.ensure=id=>load(id);
 A.setVisible=(id,on)=>setLayerOn(id,on);
 A.showAll=showAll;A.hideAll=hideAll;A.setOpacity=setOpacity;A.setGroupOn=setGroupOn;A.groupCheckState=groupCheckState;
 A.saveLgStore=saveLgStore;A.restoreLgStore=restoreLgStore;
+A._lgGroups=()=>{const groups={};nodes.forEach((n,i)=>{groups[n.name+'@'+i]=!!n.on});return groups};
+A.lgCollapsed=()=>!!lgState.all;
+A.zoomToLayer=zoomToLayer;A.zoomToGroup=zoomToGroup;A.zoomToAct=zoomToAct;A.layerIdsOf=layerIdsOf;A.featBounds=featBounds;A.zoomPred=zoomPred;A.zoomMax=zoomMax;
 A.isShown=id=>!!A.st[id].added;
 A.inPoly=inPoly;A.classOf=classOf;A.effective=effective;A.lay=LAY;A.relabel=relabel;A.hitsAt=hitsAt;A.classByProps=classByProps;A.identify=identify;
 })();

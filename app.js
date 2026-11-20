@@ -3,7 +3,7 @@ const codeLbl=c=>c==null||c===''?'–':String(c);
 // Dasar target persen LC & Rumpukan: 'batas_kebun' (keputusan pemilik) atau 'status_lahan' (union Status Lahan DNP) - ubah HANYA konstanta ini
 const TARGET_BASIS='batas_kebun';
 const BATAS_COLOR='#333333',BLOK_COLOR='#555555';
-const VER='202611210100';
+const VER='202611210300';
 const DATA_URL='data/land_clearing.geojson?v='+VER;
 const BATAS_URL='data/batas_kebun.geojson?v='+VER;
 const BLOK_URL='data/blok_sawit.geojson?v='+VER;
@@ -15,6 +15,7 @@ const BLN=['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','De
 const BLN_FULL=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
 const map=L.map('map',{maxZoom:21}).setView([-3.71,104.45],13);
 if(window.Basemap)Basemap.init(map);
+if(window.UiState&&UiState.hook)UiState.hook();
 else L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:21,maxNativeZoom:18,attribution:'Esri World Imagery'}).addTo(map);
 L.control.scale({imperial:false,maxWidth:140}).addTo(map);
 let data,batas,blok,nBlok=0,first=true,homeBounds=null;
@@ -43,7 +44,7 @@ function mapFiltered(){const pg=$('fPeng')&&$('fPeng').value,op=$('fOp')&&$('fOp
   if(pg&&v(p.Pengerjaan)!=pg)return false;if(op&&v(p.Operator)!=op)return false;return true})}
 function render(){const fs=filtered();
  if(window.Atlas&&Atlas.st&&Atlas.st.land_clearing)Atlas.setFeatures('land_clearing',mapFiltered());   // rentang tanggal tidak membuang fitur (simbologi arsir); alat/operator tetap memotong
- if(first&&fs.length){const b=L.geoJSON({type:'FeatureCollection',features:fs}).getBounds();if(batas)b.extend(batas.getBounds());homeBounds=b;map.fitBounds(b,{padding:[20,20]});first=false;const h=location.hash.match(/^#(\d+)\/(-?[\d.]+)\/(-?[\d.]+)/);if(h)map.setView([+h[2],+h[3]],+h[1])}
+ if(first){const src=(data&&data.features)||fs||[];const b=L.geoJSON({type:'FeatureCollection',features:src.length?src:[]}).getBounds();if(batas){if(src.length)b.extend(batas.getBounds());else{const bb=batas.getBounds();b.extend(bb)}}homeBounds=b;first=false;const saved=window.UiState&&UiState.takeMapView&&UiState.takeMapView();const h=location.hash.match(/^#(\d+)\/(-?[\d.]+)\/(-?[\d.]+)/);if(saved)map.setView([saved.lat,saved.lng],saved.zoom,{animate:false});else if(h)map.setView([+h[2],+h[3]],+h[1]);else if(b.isValid&&b.isValid())map.fitBounds(b,{padding:[20,20]})}
  const tot=fs.reduce((t,f)=>t+f.properties.Luas,0);
  const nAct=FIDS.filter(i=>$(i).value).length;
  $('summary').innerHTML=`<div class="kv">Jumlah poligon LC <b id="nPoly">${fs.length}</b></div><div class="kv">Total luas LC <b><span id="totLuas">${fmt(tot)}</span> ha</b></div>`+(batas?`<div class="kv">Luas Batas Kebun <b><span id="luasBatas">${fmt(batasHa)}</span> ha</b></div>`:'')+(blok?`<div class="kv">Jumlah Blok <b id="nBlok">${nBlok}</b></div>`:'');
