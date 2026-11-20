@@ -1,0 +1,221 @@
+/* ===================================================================
+   v5 — layout yang bisa di-adjust, kegiatan di sidebar,
+   strip ringkas menggantikan 8 kartu di atas peta.
+   Tidak mengubah simbologi / warna kegiatan.
+   =================================================================== */
+:root{
+  --kpi:44px;
+  --kpi2:0px;
+  --side:392px;
+  --dockh:300px;
+  --side-min:280px;
+  --side-max:560px;
+  --dock-min:160px;
+}
+#kpis{display:none!important}
+
+/* ----- Header chip v5 (opsional, tidak dipakai di rilis) ----- */
+.chip-v5{background:#f3e3a6;color:#5a4308;font-size:11px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;height:26px;padding:0 10px;align-self:center}
+#appbar .map-title{flex:1}
+
+/* ----- Sidebar ----- */
+#panel{display:flex;flex-direction:column;padding:0;width:var(--side);background:var(--bg);overflow:hidden;transition:width .2s ease,transform .25s ease}
+#panel .sheet-grab,#panel .panel-x{display:none}
+#panel .panel-top{display:flex;align-items:center;justify-content:space-between;padding:10px 16px 4px;flex:none}
+#panel .panel-kicker{font-size:11px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;color:var(--g8)}
+#panel > .sec, #panel > .sec-acts, #panel > .sec-detail{margin:8px 12px}
+#panel > .sec{flex:none}
+#panel .sec-acts{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;margin-bottom:8px;overflow:hidden}
+#panel .sec-h{display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:10px 12px 8px;font-size:12.5px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;color:var(--g8);border-bottom:1px solid var(--line)}
+#panel .sec-h small{font-weight:600;letter-spacing:0;text-transform:none;color:var(--mut);font-size:10.5px;text-align:right;line-height:1.3;max-width:62%}
+#kebunChip{color:var(--mut)}
+.act-list{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;padding:6px 8px 8px}
+.act-list::-webkit-scrollbar{width:8px}.act-list::-webkit-scrollbar-thumb{background:var(--pale);border-radius:8px}
+
+/* Kartu kegiatan ringkas di sidebar */
+#actList .act{position:relative;display:flex;flex-direction:column;gap:2px;padding:8px 10px 9px;margin:0 0 6px;cursor:pointer;border-left:4px solid var(--ac,#4d918a);overflow:hidden}
+#actList .act .kpi-prog{position:static;height:4px;margin:4px 0 0;width:100%;border-radius:9px}
+#actList .act .kpi-prog div{border-radius:9px}
+#actList .act-h{height:auto}
+#actList .act-h b{font-size:11px}
+#actList .act-v{height:auto;align-items:baseline}
+#actList .act-v .v{font-size:18px;line-height:1.15}
+#actList .act-v .pct{margin-left:6px;font-size:12px;font-weight:800;color:var(--g8);font-variant-numeric:tabular-nums}
+#actList .act-v .pill{margin-left:auto;font-size:10px;padding:1px 7px}
+#actList .act.sel{background:#f3f8f6;outline:2px solid var(--blue);outline-offset:-2px}
+#actList .act:hover{background:#fafcfb}
+#actList .act-s,#actList .act-s2{display:none}
+
+/* Detail kegiatan (disisipkan setelah kartu terpilih) */
+#actDetailWrap{flex:none;margin:0 12px 12px;padding:0 0 10px;max-height:none}
+#actDetailWrap[hidden]{display:none!important}
+#actDetailWrap .sec-h{border-bottom:1px solid var(--line);padding:8px 10px}
+.back-btn{border:1px solid var(--line);background:#fff;color:var(--g8);border-radius:8px;width:28px;height:26px;font-weight:700;line-height:1;padding:0}
+.back-btn:hover{background:var(--g8);color:#fff}
+#actHero{padding:10px 12px 8px}
+#actHero .hero-v{display:flex;align-items:baseline;gap:6px;flex-wrap:wrap}
+#actHero .hero-v .v{font-size:28px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1;color:var(--ink)}
+#actHero .hero-v small{font-size:12px;font-weight:600;color:var(--mut)}
+#actHero .hero-v .pill{margin-left:auto;font-size:11px;font-weight:800;color:var(--g8);background:var(--g1);border-radius:999px;padding:2px 9px}
+#actHero .kpi-prog{width:100%;height:7px;margin:8px 0 6px}
+#actHero .hero-s{font-size:12px;line-height:1.45;color:var(--ink);margin:0 0 4px}
+#actHero .hero-s2{font-size:11.5px;line-height:1.45;color:var(--mut);margin:0}
+#actHero .hero-note{margin-top:8px;padding:8px 10px;background:#f7faf8;border:1px dashed var(--line);border-radius:8px;font-size:11.5px;line-height:1.45;color:var(--mut)}
+#actHero .info-pairs{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}
+#actHero .info-pairs .ip{background:#f7faf8;border:1px solid var(--line);border-radius:8px;padding:7px 9px}
+#actHero .info-pairs .ip b{display:block;font-size:14px;font-variant-numeric:tabular-nums}
+#actHero .info-pairs .ip span{font-size:10.5px;color:var(--mut)}
+#actHero .open-dock{margin-top:10px;width:100%;height:34px;border-radius:9px;border:1px solid var(--g8);background:#fff;color:var(--g8);font:700 12px 'Plus Jakarta Sans',sans-serif}
+#actHero .open-dock:hover{background:var(--g8);color:#fff}
+#lcTools,#genTools{padding:0 12px 4px}
+#lcTools h3,#genTools h3{margin:12px 0 6px}
+#lcTools h3.subh,#genTools h3.subh{margin:8px 0 4px;font-size:11px;font-weight:700;letter-spacing:.3px}
+#lcTools{display:none}
+#actDetailWrap.act-lc #lcTools{display:block}
+#actDetailWrap.act-lc #genTools{display:none}
+.act-ly{padding:0 12px 6px;display:flex;flex-wrap:wrap;gap:6px}
+.act-ly label{display:inline-flex;align-items:center;gap:6px;margin:0;padding:4px 8px;border:1px solid var(--line);border-radius:999px;background:#fff;font-size:11.5px;font-weight:600;color:var(--ink);cursor:pointer}
+.act-ly label input{accent-color:var(--g8);margin:0}
+.act-ly .ly-hint{width:100%;font-size:11px;color:var(--mut);margin:0}
+
+/* ----- Resize handles ----- */
+.resize-x{position:absolute;top:0;right:0;width:10px;bottom:0;cursor:col-resize;z-index:1003;background:transparent;touch-action:none}
+.resize-x:after{content:'';position:absolute;top:50%;right:2px;transform:translateY(-50%);width:3px;height:48px;border-radius:3px;background:var(--pale);opacity:.8}
+.resize-x:hover:after,.resize-x.drag:after,body.resizing-x .resize-x:after{background:var(--g6);opacity:1;height:72px}
+.resize-y{position:absolute;top:0;left:0;right:0;height:10px;cursor:row-resize;z-index:960;touch-action:none}
+.resize-y:after{content:'';position:absolute;left:50%;top:2px;transform:translateX(-50%);width:48px;height:3px;border-radius:3px;background:var(--pale)}
+.resize-y:hover:after,.resize-y.drag:after,body.resizing-y .resize-y:after{background:var(--g6);width:72px}
+body.resizing-x,body.resizing-y,body.resizing-x *,body.resizing-y *{cursor:inherit!important;user-select:none!important}
+body.resizing-x{cursor:col-resize!important}
+body.resizing-y{cursor:row-resize!important}
+body.resizing-x #panel,body.resizing-y #dock,body.resizing-x #map,body.resizing-y #map,body.resizing-x #strip,body.resizing-y #strip{transition:none!important}
+
+/* ----- Strip ringkas di atas peta ----- */
+#strip{position:absolute;top:var(--hdr);left:var(--map-left,var(--side));right:0;height:var(--kpi);display:flex;align-items:center;gap:6px;padding:0 10px;background:var(--bg);z-index:900;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;transition:left .25s ease,opacity .2s}
+#strip::-webkit-scrollbar{display:none}
+.strip-item{flex:1 1 0;min-width:108px;max-width:220px;display:flex;align-items:center;gap:8px;height:32px;padding:0 8px 0 9px;background:#fff;border:1px solid var(--line);border-left:3px solid var(--ac,#4d918a);border-radius:9px;box-shadow:0 1px 2px rgba(16,40,30,.05);cursor:pointer;white-space:nowrap}
+.strip-item:hover{background:#f7faf8}
+.strip-item.sel{outline:2px solid var(--blue);outline-offset:-2px}
+.strip-item .nm{font-size:9.5px;font-weight:800;letter-spacing:.2px;text-transform:uppercase;color:var(--mut);line-height:1}
+.strip-item .meta{display:flex;flex-direction:column;min-width:0;flex:1}
+.strip-item .val{font-size:12.5px;font-weight:800;font-variant-numeric:tabular-nums;color:var(--ink);line-height:1.1}
+.strip-item .val small{font-size:9.5px;font-weight:600;color:var(--mut);margin-left:2px}
+.strip-item .pct{margin-left:auto;font-size:11.5px;font-weight:800;color:var(--g8);font-variant-numeric:tabular-nums}
+.strip-item .info{flex:none;width:16px;height:16px;border-radius:50%;border:0;background:var(--pale);color:var(--g8);font:700 italic 10px/1 var(--serif);cursor:help;padding:0}
+.strip-item .info:hover{background:var(--blue);color:#fff}
+
+/* ----- Peta & dock mengikuti lebar sidebar / tinggi strip ----- */
+#map{top:calc(var(--hdr) + var(--kpi));left:var(--map-left,var(--side));bottom:calc(var(--ftr) + var(--dockc));transition:left .25s ease,top .2s ease,bottom .2s ease}
+#dock{left:var(--map-left,var(--side));height:var(--dockc);transition:height .25s ease,left .25s ease}
+#kpis2{display:none!important}
+
+body.collapsed #panel{transform:translateX(-110%);pointer-events:none}
+body.collapsed #strip,body.collapsed #map,body.collapsed #dock{left:var(--map-left,0px)!important}
+body.collapsed #toggle{background:rgba(255,255,255,.2)}
+
+body.dock-max.dock-open{--dockc:calc(100vh - var(--hdr) - var(--kpi) - var(--ftr))}
+body.dock-max #dockMax{background:var(--g8);color:#fff;border-color:var(--g8)}
+body.dock-max #map{/* sliver of map remains so layout stays honest */ }
+
+body.fullmap{--kpi:0px;--dockc:0px}
+body.fullmap #panel{transform:translateX(-110%);pointer-events:none}
+body.fullmap #strip,body.fullmap #dock{opacity:0;pointer-events:none;visibility:hidden}
+body.fullmap #map,body.fullmap.collapsed #map,body.collapsed.fullmap #map{left:0!important;top:var(--hdr)!important;right:0;bottom:var(--ftr)!important}
+body.fullmap #fullMapBtn{background:rgba(255,255,255,.22)}
+body.fullmap #toggle{background:rgba(255,255,255,.2)}
+
+#fullMapBtn[aria-pressed="true"]{background:rgba(255,255,255,.22)}
+
+/* ----- Mobile: sidebar jadi bottom sheet ----- */
+#panelBackdrop{display:none}
+@media(max-width:760px){
+  :root{--hdr:56px;--kpi:40px;--ftr:26px;--side:0px;--dockh:42vh}
+  #appbar{padding:0 10px;gap:8px}
+  .map-title,.hdr-upd,#printBtn,.chip-v5{display:none}
+  #panel{position:fixed;top:auto;left:0;right:0;bottom:0;width:100%!important;max-width:none;height:min(86vh,740px);max-height:86vh;transform:translateY(110%);box-shadow:0 -10px 36px rgba(4,51,45,.28);border-right:0;border-radius:18px 18px 0 0;z-index:1180;padding-bottom:calc(var(--ftr) + 8px);transition:transform .28s ease}
+  #panel.open{transform:none;pointer-events:auto}
+  body.collapsed #panel{transform:translateY(110%);pointer-events:none}
+  #panel .sheet-grab{display:flex;justify-content:center;padding:8px 0 0;flex:none}
+  #panel .sheet-grab i{width:42px;height:4px;border-radius:4px;background:#c5d2cc}
+  #panel .panel-x{display:grid;place-items:center;width:32px;height:32px;border:0;background:transparent;color:var(--mut);font-size:22px;border-radius:8px}
+  #panel .resize-x{display:none}
+  #panelBackdrop{display:block;position:fixed;inset:0;background:rgba(4,51,45,.4);z-index:1170;opacity:0;pointer-events:none;transition:opacity .25s}
+  #panelBackdrop.show{opacity:1;pointer-events:auto}
+  #strip,#map,#dock,body.collapsed #strip,body.collapsed #map,body.collapsed #dock,body.fullmap #map{left:0}
+  #map{bottom:calc(var(--ftr) + var(--dockc))!important}
+  body.fullmap #map{bottom:var(--ftr)!important;top:var(--hdr)!important}
+  #strip{padding:0 8px}
+  .strip-item{flex:0 0 auto;min-width:118px;max-width:none}
+  #dock{z-index:1100}
+  body.dock-open{--dockc:52vh}
+  body.dock-max.dock-open{--dockc:calc(100vh - var(--hdr) - var(--kpi) - var(--ftr))}
+  body.fullmap #panel{transform:translateY(110%)!important}
+  #statusbar .copy em{display:none}
+  #cUTM,#cZ{display:none}
+}
+@media(max-width:1440px){
+  :root{--side:360px;--dockh:280px}
+  .strip-item{min-width:100px;padding:0 6px 0 7px;gap:6px}
+  .strip-item .val{font-size:12px}
+}
+@media(max-width:1200px){
+  :root{--side:340px}
+  .hdr-upd{display:none}
+  #fullMapBtn span{display:none}
+}
+@media(max-height:800px){
+  :root{--dockh:240px}
+}
+@media(prefers-reduced-motion:reduce){
+  #panel,#map,#dock,#strip,#panelBackdrop{transition:none!important}
+}
+@media print{
+  #strip,#sideResize,#dockResize,#fullMapBtn,.chip-v5,#panelBackdrop{display:none!important}
+  #map{left:0!important;top:auto!important}
+}
+
+.act-hint{margin:4px 12px 10px;padding:10px 12px;font-size:12px;line-height:1.45;color:var(--mut);background:#f3f8f6;border:1px dashed var(--line);border-radius:10px}
+.act-hint[hidden],#actDetailWrap:not([hidden]) ~ .act-hint{display:none}
+#actList #actDetailWrap,.act-list > #actDetailWrap{margin:2px 0 8px;flex:none}
+/* pastikan detail terlihat sebagai kartu di dalam daftar */
+#actDetailWrap.sec{background:#fff;border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--sh);overflow:hidden}
+
+/* rapatkan sidebar agar 8 kartu muat di 1440×900 */
+#panel .panel-top{padding:8px 14px 2px}
+#panel > .sec, #panel > .sec-acts, #panel > .sec-detail{margin:6px 10px}
+#panel .sec-h{padding:8px 12px 6px}
+#actList .act{padding:6px 10px 7px;margin:0 0 5px}
+#actList .act-v .v{font-size:16px}
+.kode-help{margin-top:4px}
+.kode-q button.btn-sec{margin-top:0;width:auto;height:36px}
+#panel .sec-body{padding:6px 12px 10px}
+.resize-x{background:linear-gradient(90deg,transparent 3px,var(--pale) 3px,var(--pale) 4px,transparent 4px)}
+@media(max-height:920px){
+  .act-hint{display:none}
+  .kode-help{display:none}
+  #panel .panel-top{padding:6px 14px 0}
+  #actList .act{padding:5px 9px 6px;margin:0 0 4px}
+}
+
+
+/* Pastikan peta/strip/dock mengikuti --map-left (mengalahkan left:var(--side) di style.css + transisi). */
+#strip,#map,#dock{left:var(--map-left,var(--side))!important}
+body.collapsed #strip,body.collapsed #map,body.collapsed #dock,
+body.fullmap #map,body.fullmap #strip,body.fullmap #dock{left:0!important;transition:none!important}
+
+/* Filter dasar kegiatan selain LC */
+.gen-filters{margin:0 0 8px}
+#gHint{margin-top:6px}
+#gCount:not([hidden]){display:inline-block}
+#genTools .flt-sum{margin:0 0 8px;padding:8px 10px;background:#f3f8f6;border:1px solid var(--line);border-radius:8px;font-size:12px;line-height:1.4}
+#genTools .flt-sum b{font-variant-numeric:tabular-nums}
+#gLoad{margin-top:8px;width:100%;height:32px;border-radius:9px;border:1px solid var(--g8);background:#fff;color:var(--g8);font:700 12px 'Plus Jakarta Sans',sans-serif}
+#gLoad:hover{background:var(--g8);color:#fff}
+
+/* Legenda kanan-bawah tidak boleh naik menutupi tombol Layer / Utara */
+#map .leaflet-bottom.leaflet-right{max-height:calc(100% - var(--lg-top-reserve,120px));overflow:hidden;display:flex;flex-direction:column;align-items:flex-end}
+#map .legend{box-sizing:border-box;max-height:min(var(--lg-max,70vh),100%)!important;overflow-y:auto}
+
+/* Recap filter Rumpukan (alat / operator) */
+#rPengSum,#rOpSum,#rCodeSum,#rTglSum{margin:4px 0 10px}
+#rRecapHead{margin:8px 0}

@@ -6,7 +6,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H" crossorigin="anonymous">
-<link rel="stylesheet" href="style.css?v=202611192210"></head><body class="locked">
+<link rel="stylesheet" href="style.css?v=202611192500">
+<link rel="stylesheet" href="style_v5.css?v=202611192500"></head><body class="locked">
 <main id="login" aria-label="Login">
  <div class="lg-wrap"><form id="loginForm" class="lg-card" autocomplete="on" novalidate>
   <div class="lg-logo"><img src="brand/logo_icon.png" alt="Logo PT Dwi Nagarta Palma" width="58" height="58"></div>
@@ -22,7 +23,7 @@
  <noscript><p class="lg-nojs">Halaman ini membutuhkan JavaScript.</p></noscript>
 </main>
 <header id="appbar">
- <button id="toggle" class="icon-btn" title="Tampilkan / sembunyikan panel" aria-label="Panel"><svg viewBox="0 0 24 24" width="20" height="20"><path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+ <button id="toggle" class="icon-btn" title="Tampilkan / sembunyikan panel kegiatan" aria-label="Panel kegiatan" aria-expanded="true"><svg viewBox="0 0 24 24" width="20" height="20"><path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
  <div class="brand">
   <span class="logo"><img src="brand/logo_icon.png" alt="Logo PT Dwi Nagarta Palma" width="34" height="34"></span>
   <div class="brand-txt"><h1>PT DWI NAGARTA PALMA</h1><div class="brand-sub">Kebun Spartan · Web GIS Monitoring</div></div>
@@ -31,39 +32,62 @@
  <div class="hdr-right">
   <span class="chip chip-gold" id="periode">Periode: –</span>
   <span class="hdr-upd"><span class="dot"></span>Update data: <b id="lastUpd">–</b></span>
+  <button id="fullMapBtn" class="btn-ghost" type="button" title="Sembunyikan panel, fokus ke peta" aria-pressed="false"><svg viewBox="0 0 24 24" width="16" height="16"><path d="M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Peta penuh</span></button>
   <button id="printBtn" class="btn-ghost" title="Cetak peta (Ctrl+P)"><svg viewBox="0 0 24 24" width="16" height="16"><path d="M6 9V3h12v6M6 18H4a1 1 0 0 1-1-1v-6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v6a1 1 0 0 1-1 1h-2M6 14h12v7H6z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg><span>Cetak</span></button>
   <button id="logoutBtn" class="btn-ghost" title="Keluar (hapus sesi)" aria-label="Keluar"><svg viewBox="0 0 24 24" width="16" height="16"><path d="M10 4H5a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h5M15 8l4 4-4 4M19 12H9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Keluar</span></button>
  </div>
 </header>
+<div id="panelBackdrop" hidden></div>
 <aside id="panel">
- <details class="sec" open><summary>Ringkasan</summary><div class="sec-body"><div id="summary"></div></div></details>
- <details class="sec" open><summary>Cari Kode Pokok</summary><div class="sec-body"><div class="kode-q"><input id="kodeQ" type="search" inputmode="text" autocomplete="off" autocapitalize="characters" placeholder="B11/R001/02" aria-label="Kode pokok (pohon)"><button id="kodeGo" type="button" class="btn-sec">Cari</button></div><div id="kodeRes" class="kode-res" role="status" aria-live="polite"></div><div class="kode-help">Format kode pokok: <b>B</b>blok<b>/R</b>baris(3 digit)<b>/</b>pohon(2 digit), mis. <b>B11/R001/02</b>. Format lama (B11/R1/2), huruf kecil, dan spasi tetap diterima.</div></div></details>
- <details class="sec" open><summary>Filter Land Clearing <span class="badge" id="fCount" hidden></span></summary><div class="sec-body filters">
-  <label>Code<select id="fCode"><option value="">Semua</option></select></label>
-  <label>Pengerjaan (Alat)<select id="fPeng"><option value="">Semua</option></select></label>
-  <label>Operator<select id="fOp"><option value="">Semua</option></select></label>
-  <div class="two"><label>Tanggal dari<input type="date" id="fFrom"></label><label>Tanggal sampai<input type="date" id="fTo"></label></div>
-  <button id="reset" class="btn-sec"><svg viewBox="0 0 24 24" width="14" height="14"><path d="M4 4v6h6M20 20v-6h-6M5.5 15a7 7 0 0 0 12.3 2M18.5 9A7 7 0 0 0 6.2 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>Reset Filter</button>
- </div></details>
- <details class="sec" open><summary>Statistik Land Clearing</summary><div class="sec-body">
-  <h3>Luas per Code</h3><div id="perCode"></div>
-  <h3>Luas per Pengerjaan (Alat)</h3><div id="perPeng"></div>
-  <h3>Luas per Operator</h3><div id="perOp"></div>
-  <h3>Luas per Tanggal</h3><div id="perTgl"></div>
- </div></details>
+ <div class="sheet-grab" aria-hidden="true"><i></i></div>
+ <div class="panel-top">
+  <div class="panel-kicker">Panel kegiatan</div>
+  <button type="button" id="panelClose" class="panel-x" title="Tutup panel" aria-label="Tutup panel">&times;</button>
+ </div>
+ <details class="sec" id="secCari" open><summary>Cari Kode Pokok</summary><div class="sec-body"><div class="kode-q"><input id="kodeQ" type="search" inputmode="text" autocomplete="off" autocapitalize="characters" placeholder="B11/R001/02" aria-label="Kode pokok (pohon)"><button id="kodeGo" type="button" class="btn-sec">Cari</button></div><div id="kodeRes" class="kode-res" role="status" aria-live="polite"></div><div class="kode-help">Format baku <b>B11/R001/02</b>. Format lama (B11/R1/2), huruf kecil, dan spasi tetap diterima.</div></div></details>
+ <section class="sec sec-acts" aria-label="Daftar kegiatan">
+  <div class="sec-h">Kegiatan <small id="kebunChip">Target = luas Batas Kebun DNP (288,66 ha)</small></div>
+  <div id="actList" class="act-list"><div class="acts-load">Memuat ringkasan kegiatan…</div></div>
+  <p id="actHint" class="act-hint">Pilih kegiatan untuk membuka KPI, filter, statistik per blok, dan toggle layer peta.</p>
+ </section>
+ <div id="actDetailWrap" class="sec sec-detail" hidden>
+  <div class="sec-h"><button type="button" id="actBack" class="back-btn" title="Tutup detail">←</button> <span id="actDetailTitle">Detail kegiatan</span></div>
+  <div id="actHero"></div>
+  <div id="actLy" class="act-ly"></div>
+  <div id="lcTools">
+   <div id="summary"></div>
+   <h3>Filter <span class="badge" id="fCount" hidden></span></h3>
+   <div class="filters">
+    <label>Code<select id="fCode"><option value="">Semua</option></select></label>
+    <label>Pengerjaan (Alat)<select id="fPeng"><option value="">Semua</option></select></label>
+    <label>Operator<select id="fOp"><option value="">Semua</option></select></label>
+    <div class="two"><label>Tanggal dari<input type="date" id="fFrom"></label><label>Tanggal sampai<input type="date" id="fTo"></label></div>
+    <button id="reset" class="btn-sec"><svg viewBox="0 0 24 24" width="14" height="14"><path d="M4 4v6h6M20 20v-6h-6M5.5 15a7 7 0 0 0 12.3 2M18.5 9A7 7 0 0 0 6.2 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>Reset Filter</button>
+   </div>
+   <h3>Statistik</h3>
+   <h3 class="subh">Luas per Code</h3><div id="perCode"></div>
+   <h3 class="subh">Luas per Pengerjaan (Alat)</h3><div id="perPeng"></div>
+   <h3 class="subh">Luas per Operator</h3><div id="perOp"></div>
+   <h3 class="subh">Luas per Tanggal</h3><div id="perTgl"></div>
+  </div>
+  <div id="genTools"></div>
+ </div>
+ <div id="sideResize" class="resize-x" title="Geser untuk ubah lebar panel" role="separator" aria-orientation="vertical" aria-label="Ubah lebar panel kiri"></div>
 </aside>
-<section id="kpis" aria-label="Kegiatan progres monitoring"><div class="acts-load">Memuat ringkasan kegiatan…</div></section>
+<section id="strip" aria-label="Ringkasan ringkas seluruh kegiatan"><div class="acts-load">Memuat…</div></section>
 <div id="map"></div>
 <section id="dock" aria-label="Analitik dashboard">
+ <div id="dockResize" class="resize-y" title="Geser untuk ubah tinggi panel bawah" role="separator" aria-orientation="horizontal" aria-label="Ubah tinggi panel bawah"></div>
  <div class="dock-bar" role="tablist">
   <button class="tab on" role="tab" data-tab="ring">Ringkasan Kegiatan</button><button class="tab" role="tab" data-tab="kurva">Kurva Kumulatif</button><button class="tab" role="tab" data-tab="pb">Progres per Blok</button><button class="tab" role="tab" data-tab="tren">LC · Tren</button><button class="tab" role="tab" data-tab="blok">LC · Progres Blok</button><button class="tab" role="tab" data-tab="prod">LC · Produktivitas</button><button class="tab" role="tab" data-tab="tabel">LC · Tabel Data</button><button class="tab" role="tab" data-tab="tanam">Realisasi Tanam</button>
   <span class="dock-sp"></span><span class="dock-hint" id="dockHint"></span>
+  <button id="dockMax" class="dock-tg" type="button" title="Perbesar panel bawah" aria-pressed="false" aria-label="Perbesar panel bawah"><svg viewBox="0 0 24 24" width="16" height="16"><path d="M5 9V5h4M15 5h4v4M19 15v4h-4M9 19H5v-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
   <button id="dockToggle" class="dock-tg" aria-expanded="true" title="Tampilkan / sembunyikan analitik" aria-label="Analitik"><svg viewBox="0 0 24 24" width="16" height="16"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
  </div>
  <div class="dock-body"><div class="pane on" id="p-ring" role="tabpanel"></div><div class="pane" id="p-kurva" role="tabpanel"></div><div class="pane" id="p-pb" role="tabpanel"></div><div class="pane" id="p-tren" role="tabpanel"></div><div class="pane" id="p-blok" role="tabpanel"></div><div class="pane" id="p-prod" role="tabpanel"></div><div class="pane" id="p-tabel" role="tabpanel"></div><div class="pane" id="p-tanam" role="tabpanel"></div></div>
 </section>
 <footer id="statusbar"><span class="copy">© 2026 PT Dwi Nagarta Palma · Data: Divisi GIS</span><span class="coords"><span id="cLL">Lat –, Lng –</span><span id="cUTM"></span><span id="cZ"></span></span></footer>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH" crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/npm/proj4@2.12.1/dist/proj4.js" integrity="sha384-eCfO4pOi+VsP6z/nsQni5JF69AVBgkaI2kwPfFh+J64UMLNVDIBVvowHHM9Q62TF" crossorigin="anonymous"></script>
+<script src="vendor/proj4.js?v=202611192500"></script>
 <script src="https://cdn.jsdelivr.net/npm/polygon-clipping@0.15.7/dist/polygon-clipping.umd.min.js" integrity="sha384-2gzcIyrtB96QDjrxsFcJ1O461CWiXJ8fiHgIkJLwTgy4WTktHXTOXt4dviXz9Y5Q" crossorigin="anonymous"></script>
-<script src="login.js?v=202611192210"></script></body></html>
+<script src="login.js?v=202611192500"></script></body></html>

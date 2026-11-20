@@ -177,7 +177,8 @@ function legendInit(){const lg=document.querySelector('.legend');if(!lg||documen
   const apply=()=>{lg.classList.toggle('lg-collapsed',!!lgState.all);b.setAttribute('aria-expanded',!lgState.all)};
   b.addEventListener('click',e=>{e.stopPropagation();lgState.all=!lgState.all;apply()});if(mobile())lgState.all=true;apply()}
  lg.addEventListener('click',e=>{const b=e.target.closest('[data-lk]');if(!b)return;const k=b.dataset.lk;lgState[k]=!(lgState[k]!=null?lgState[k]:(k[0]==='l'?(!mobile()&&map.getSize().y>=520):!mobile()));legend()});
- const fitLg=()=>lg.style.setProperty('--lg-max',Math.max(map.getSize().y-100,90)+'px');fitLg();map.on('resize',fitLg)}
+ fitLegend();map.on('resize',fitLegend)}
+function fitLegend(){const lg=document.querySelector('.legend');if(!lg||!map)return;const mh=map.getSize().y,loc=parseFloat(getComputedStyle(map.getContainer()).getPropertyValue('--loc-h'))||0,bot=28,reserve=Math.max(120,loc+16);map.getContainer().style.setProperty('--lg-top-reserve',reserve+'px');lg.style.setProperty('--lg-max',Math.max(mh-reserve-bot,80)+'px')}
 // ---------------- identify (popup atribut) ----------------
 function inRing(r,x,y){let c=false;for(let i=0,j=r.length-1;i<r.length;j=i++){const a=r[i],b=r[j];if((a[1]>y)!==(b[1]>y)&&x<(b[0]-a[0])*(y-a[1])/(b[1]-a[1])+a[0])c=!c}return c}
 function inPoly(p,x,y){if(!inRing(p[0],x,y))return false;for(let i=1;i<p.length;i++)if(inRing(p[i],x,y))return false;return true}
@@ -313,6 +314,8 @@ A.init=function(o){
  const late=new Set(['jalan_lokal','sungai_ln_50k']);const first=C.order.filter(i=>!late.has(i)),last=C.order.filter(i=>late.has(i));
  first.forEach(apply);setTimeout(()=>last.forEach(apply),60);
  return A.ctl};
+A.fitLegend=fitLegend;
+A.ensure=id=>load(id);
 A.setVisible=(id,on)=>{A.st[id].own=on;apply(id);refreshTOC()};
 A.showAll=()=>{nodes.forEach(n=>{n.on=true;n.collapsed=false});Object.values(A.st).forEach(s=>s.own=true);applyAll()};
 A.isShown=id=>!!A.st[id].added;

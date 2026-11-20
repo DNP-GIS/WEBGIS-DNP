@@ -56,9 +56,9 @@ top.innerHTML=`<div id="locToast" class="loc-toast" role="alert" hidden><span id
   <div class="loc-actions"><button type="button" id="locCopy" class="btn-mini">⧉ Salin koordinat</button><a id="locGm" class="btn-mini" target="_blank" rel="noopener noreferrer" href="https://www.google.com/maps">↗ Buka di Google Maps</a></div>
  </div></div>`;
 map.getContainer().appendChild(top);L.DomEvent.disableClickPropagation(top);L.DomEvent.disableScrollPropagation(top);
-function fitBody(){const bd=document.querySelector('#locPanel .loc-body');if(bd)bd.style.maxHeight=(mobile()?Math.max(map.getSize().y*.34,140):Math.max(map.getSize().y-96,110))+'px'}
+function fitBody(){const bd=document.querySelector('#locPanel .loc-body');if(!bd)return;const mh=map.getSize().y;bd.style.maxHeight=(mobile()?Math.max(mh*.34,140):Math.max(mh-96-100,110))+'px'}
 map.on('resize',fitBody);fitBody();
-if(window.ResizeObserver)new ResizeObserver(()=>{const h=top.offsetHeight;map.getContainer().style.setProperty('--loc-h',h?(h+8)+'px':'0px')}).observe(top);
+if(window.ResizeObserver)new ResizeObserver(()=>{const h=top.offsetHeight;map.getContainer().style.setProperty('--loc-h',h?(h+8)+'px':'0px');if(window.Atlas&&Atlas.fitLegend)Atlas.fitLegend()}).observe(top);
 let toastTimer;
 function toast(msg,kind,sticky){const t=$('locToast');$('locToastTx').textContent=msg;t.className='loc-toast '+(kind||'info');t.hidden=false;clearTimeout(toastTimer);if(!sticky)toastTimer=setTimeout(()=>{t.hidden=true},7000)}
 $('locToastX').onclick=()=>{$('locToast').hidden=true};
@@ -107,7 +107,7 @@ function onFix(pos){
  S.hasFix=true;S.last={lat:c.latitude,lng:c.longitude,acc,speed:(c.speed!=null&&isFinite(c.speed))?c.speed:null,ts:pos.timestamp||Date.now()};
  const hv=(c.heading!=null&&isFinite(c.heading))?c.heading:null;S.gps={h:hv,moving:S.last.speed!=null&&S.last.speed>=MOVING_MS};
  ensureLayers();S.marker.setLatLng(ll);S.circle.setLatLng(ll).setRadius(acc);
- if(first){$('locPanel').hidden=false;if((mobile()||map.getSize().y<560)&&S.collapsed===null)S.collapsed=true;applyCollapse();
+ if(first){try{map.invalidateSize({pan:false})}catch(e){}$('locPanel').hidden=false;if((mobile()||map.getSize().y<560)&&S.collapsed===null)S.collapsed=true;applyCollapse();
   if(S.follow){setState('follow');const b=ll.toBounds(Math.max(acc*2.4,60));{const z=Math.min(map.getBoundsZoom(b,false,L.point(40,40)),17);map.flyTo(tgt(ll,z),z,{duration:.8})}}
   else setState('free')}
  else if(S.follow)panFollow(ll);
