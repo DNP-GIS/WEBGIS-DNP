@@ -247,7 +247,7 @@ function toggleEye(id){const a=ACT[id],on=!eyeOn(a);
   else{K.excl.add(a.cat);Atlas.setPointFilter('titik_tanam_realisasi',tanamFlt);}}
  else{const main=a.id==='jalan'?['jalan_realisasi','jalan_rencana']:a.layers;main.forEach(l=>Atlas.setVisible(l,on))}
  syncEyes()}
-document.addEventListener('atlas:layer',syncEyes);
+document.addEventListener('atlas:layer',()=>{syncEyes();document.querySelectorAll('[data-ly]').forEach(i=>{if(i.dataset.ly&&Atlas.st[i.dataset.ly])i.checked=Atlas.isShown(i.dataset.ly)})});
 // ---- tab Ringkasan ----
 function ringRows(){const F=K.F,P=K.P,pc=v=>v==null?'–':nf(v,1)+'%';
  const r=[];
@@ -332,7 +332,7 @@ function renderPB(){const pane=$('p-pb');if(!K.P){pane.innerHTML='<div class="em
 A.TABS.ring=renderRing;A.TABS.kurva=renderKurva;A.TABS.pb=renderPB;
 function boot(){
  if(!A.ready){setTimeout(boot,120);return}
- Vault.getJSON('data/progres.json?v=202611192500').then(P=>{K.P=P;K.F=figures(P);
+ Vault.getJSON('data/progres.json?v=202611201400').then(P=>{K.P=P;K.F=figures(P);
   renderCards();A.renderTab();
   const d=P.meta.tanggal_data,[y,m]=d.split('-');const per=$('periode'),up=$('lastUpd');
   if(per)per.textContent=`Periode: ${['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'][m-1]} ${y}`;if(up)up.textContent=tg(d).replace(/ (\w+) /,(a,b)=>' '+['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'][BLN.indexOf(b)]+' ');

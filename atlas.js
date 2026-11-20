@@ -8,13 +8,13 @@ const LAY=C.layers,NS='http://www.w3.org/2000/svg';
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const nf=(n,d)=>(+n).toLocaleString('id-ID',{minimumFractionDigits:d,maximumFractionDigits:d});
 const A={cfg:C,st:{},ctl:null,ops:[]};window.Atlas=A;
-const dispName=L=>L.name.replace('288.66','288,66');
+const dispName=L=>L.name.replace('288.66','288,66').replace('8.602 Ha','8.602,87 Ha');
 let map=null;
 // ---------------- pola isian (SVG <pattern>) ----------------
 function ensureDefs(){if(document.getElementById('atlPatterns'))return;const s=document.createElementNS(NS,'svg');s.id='atlPatterns';s.setAttribute('width','0');s.setAttribute('height','0');s.setAttribute('aria-hidden','true');s.style.cssText='position:absolute;width:0;height:0;overflow:hidden';
  s.innerHTML='<defs>'+window.ATLAS_PATTERNS+'</defs>';document.body.appendChild(s)}
 // ---------------- pane & renderer ----------------
-function pane(L){const n='atl_'+L.id;if(!map.getPane(n)){map.createPane(n);const p=map.getPane(n);p.style.zIndex=L.z;p.style.pointerEvents='none';if(L.op<1)p.style.opacity=L.op}return n}
+function pane(L){const n='atl_'+L.id;if(!map.getPane(n)){map.createPane(n);const p=map.getPane(n);p.style.zIndex=L.z;p.style.pointerEvents='none'}const p=map.getPane(n);p.style.opacity=(L.op==null?1:L.op);return n}
 // ---------------- kelas simbol ----------------
 function classByProps(L,p){
  if(L.render==='simple')return L.classes[0];
@@ -83,9 +83,9 @@ function load(id){const s=A.st[id];if(s.promise)return s.promise;const L=LAY[id]
  return s.promise}
 function effective(id){const s=A.st[id];return s.own&&s.anc.every(g=>g.on)}
 function apply(id){const s=A.st[id],L=LAY[id],eff=effective(id);
- if(eff){const go=()=>{if(!effective(id)||s.added)return;const t=performance.now();s.layer.addTo(map);s.added=true;s.addMs=Math.round(performance.now()-t);labelsOn(id,true);legend();document.dispatchEvent(new CustomEvent('atlas:layer',{detail:{id,on:true}}))};
+ if(eff){const go=()=>{if(!effective(id)||s.added)return;const t=performance.now();s.layer.addTo(map);s.added=true;s.addMs=Math.round(performance.now()-t);labelsOn(id,true);scheduleLegend();document.dispatchEvent(new CustomEvent('atlas:layer',{detail:{id,on:true}}))};
   if(s.layer)go();else load(id).then(go).catch(()=>{})}
- else if(s.added){map.removeLayer(s.layer);s.added=false;labelsOn(id,false);legend();document.dispatchEvent(new CustomEvent('atlas:layer',{detail:{id,on:false}}))}}
+ else if(s.added){map.removeLayer(s.layer);s.added=false;labelsOn(id,false);scheduleLegend();document.dispatchEvent(new CustomEvent('atlas:layer',{detail:{id,on:false}}))}}
 function applyAll(){C.order.forEach(apply);refreshTOC()}
 // ---------------- pohon ----------------
 const nodes=[];   // semua node grup
@@ -116,7 +116,7 @@ function refreshTOC(){if(!treeDiv)return;
  treeDiv.querySelectorAll('.atl-r').forEach(r=>{const anc=r.dataset.anc?r.dataset.anc.split(',').map(Number):[];
   r.hidden=anc.some(i=>nodes[i].collapsed);
   if(r.dataset.id){const id=r.dataset.id,s=A.st[id];r.querySelector('input').checked=s.own;r.classList.toggle('dim',s.own&&!s.anc.every(g=>g.on));r.classList.toggle('fail',!!s.error);r.classList.toggle('busy',!!(s.promise&&!s.layer&&!s.error))}
-  else{const n=nodes[+r.dataset.g];r.querySelector('input').checked=n.on;r.classList.toggle('dim',n.on&&n.anc.some(g=>!g.on));
+  else{const n=nodes[+r.dataset.g],st=groupCheckState(+r.dataset.g),inp=r.querySelector('input');inp.checked=st==='all';inp.indeterminate=st==='some';r.classList.toggle('dim',n.on&&n.anc.some(g=>!g.on));
    const c=r.querySelector('.atl-car');c.classList.toggle('open',!n.collapsed);c.setAttribute('aria-expanded',String(!n.collapsed))}})}
 function refreshOps(){if(!opsDiv)return;
  if(opsDiv.dataset.n!==String(A.ops.length)){opsDiv.dataset.n=A.ops.length;opsDiv.innerHTML=A.ops.length?'<div class="atl-sec">Operasional</div>'+A.ops.map((o,i)=>`<div class="atl-r"><label><input type="checkbox" data-op="${i}"><span class="atl-n">${esc(o.name)}</span></label></div>`).join(''):''}
@@ -136,8 +136,8 @@ function buildControl(bases){
   ctlEl.querySelector('.atl-x').onclick=close;map.on('click',close);
   if(window.matchMedia('(hover:hover) and (pointer:fine)').matches){ctlEl.addEventListener('mouseenter',open);ctlEl.addEventListener('mouseleave',close)}
   ctlEl.addEventListener('change',e=>{const t=e.target;
-   if(t.dataset.l){const s=A.st[t.dataset.l];s.own=t.checked;apply(t.dataset.l);refreshTOC()}
-   else if(t.dataset.gc!=null){nodes[+t.dataset.gc].on=t.checked;applyAll()}
+   if(t.dataset.l){setLayerOn(t.dataset.l,t.checked)}
+   else if(t.dataset.gc!=null){setGroupOn(+t.dataset.gc,t.checked)}
    else if(t.dataset.b!=null){const ks=Object.keys(bases);ks.forEach((k,i)=>{if(i===+t.dataset.b){if(!map.hasLayer(bases[k]))map.addLayer(bases[k])}else if(map.hasLayer(bases[k]))map.removeLayer(bases[k])})}
    else if(t.dataset.op!=null){const o=A.ops[+t.dataset.op];t.checked?map.addLayer(o.layer):map.removeLayer(o.layer)}});
   ctlEl.addEventListener('click',e=>{const b=e.target.closest('.atl-car');if(b){const n=nodes[+b.dataset.car];n.collapsed=!n.collapsed;refreshTOC()}});
@@ -149,6 +149,38 @@ function addOverlay(layer,name){A.ops.push({layer,name});refreshOps();layer.on&&
 // ---------------- legenda ----------------
 function mobile(){return window.matchMedia('(max-width:760px)').matches}
 const lgState={};   // kunci -> true (terbuka)
+const LG_STORE='dnp_v6_legend';
+let lgTimer=0,lgSaveT=0;
+function scheduleLegend(){clearTimeout(lgTimer);lgTimer=setTimeout(legend,30)}
+function loadLgStore(){try{return JSON.parse(sessionStorage.getItem(LG_STORE)||'null')}catch(e){return null}}
+function saveLgStore(){clearTimeout(lgSaveT);lgSaveT=setTimeout(()=>{
+  const layers={},groups={};
+  Object.keys(A.st).forEach(id=>{layers[id]={on:!!A.st[id].own,op:+(LAY[id].op==null?1:LAY[id].op)}});
+  nodes.forEach((n,i)=>{groups[n.name+'@'+i]=!!n.on});
+  try{sessionStorage.setItem(LG_STORE,JSON.stringify({v:1,layers,groups,collapsed:!!lgState.all}))}catch(e){}
+},40)}
+function restoreLgStore(){
+  const st=loadLgStore();if(!st)return;
+  if(st.layers)Object.keys(st.layers).forEach(id=>{
+    if(!A.st[id]||!LAY[id])return;const o=st.layers[id];
+    if(typeof o.on==='boolean')A.st[id].own=o.on;
+    if(typeof o.op==='number'&&isFinite(o.op))LAY[id].op=Math.max(0,Math.min(1,o.op));
+  });
+  if(st.groups)nodes.forEach((n,i)=>{const v=st.groups[n.name+'@'+i];if(typeof v==='boolean')n.on=v});
+  if(typeof st.collapsed==='boolean')lgState.all=st.collapsed;
+}
+function layerIdsOf(n,out){out=out||[];if(n.t==='l')out.push(n.id);else(n.ch||[]).forEach(c=>layerIdsOf(c,out));return out}
+function groupCheckState(i){const n=nodes[i],ids=layerIdsOf(n);if(!n.on)return'none';
+ const ons=ids.filter(id=>A.st[id]&&A.st[id].own);if(!ons.length)return'none';if(ons.length===ids.length)return'all';return'some'}
+function setOpacity(id,op){op=Math.max(0,Math.min(1,+op));if(!LAY[id])return;LAY[id].op=op;
+ const p=map&&map.getPane('atl_'+id);if(p)p.style.opacity=op;saveLgStore()}
+function setLayerOn(id,on){if(!A.st[id])return;A.st[id].own=!!on;if(on)A.st[id].anc.forEach(g=>g.on=true);applyAll();saveLgStore()}
+function setGroupOn(i,on){const n=nodes[i];if(!n)return;
+ if(on){n.anc.forEach(g=>g.on=true);(function walk(x){if(x.t==='l'){if(A.st[x.id])A.st[x.id].own=true}else{x.on=true;x.ch.forEach(walk)}})(n)}
+ else n.on=false;
+ applyAll();saveLgStore()}
+function hideAll(){nodes.forEach(n=>{n.on=true});Object.values(A.st).forEach(s=>s.own=false);applyAll();saveLgStore()}
+function showAll(){nodes.forEach(n=>{n.on=true;n.collapsed=false});Object.values(A.st).forEach(s=>s.own=true);applyAll();saveLgStore()}
 function legendClassRows(id){const L=LAY[id];
  if(L.p17)return L.render==='simple'?[]:L.classes.filter(c=>c.drawn&&c.n>0).map(c=>({label:c.label,c}));
  if(L.id==='genangan_air')return L.classes.filter(c=>c.drawn&&c.n>0).map(c=>({label:c.key==='default'?'Semua nilai lain':'Luas '+nf(+c.key,0)+' m²',c}));
@@ -156,28 +188,46 @@ function legendClassRows(id){const L=LAY[id];
  return []}
 function swatchClass(id,c){const L=LAY[id];if(L.kind==='pts')return `<svg class="atl-sw" width="24" height="12" viewBox="0 0 24 12" aria-hidden="true">${ptSw(c.sym,24,12)}</svg>`;if(L.kind!=='poly')return swatch(id);const s=c.leaflet,w=24,h=12;const op=L.op<1?` opacity="${L.op}"`:'';
  return `<svg class="atl-sw" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"${op}><rect x=".8" y=".8" width="${w-1.6}" height="${h-1.6}" rx="1.5" fill="${s.fillOpacity>0?s.fillColor:'none'}" stroke="${s.color}" stroke-width="${Math.min(Math.max(s.weight,.8),2.4)}"/></svg>`}
+function hasSlider(L){return L&&(L.kind==='poly'||L.kind==='line')}
+function opSlider(id){const L=LAY[id],v=Math.round((L.op==null?1:L.op)*100);
+ return hasSlider(L)?`<input type="range" class="lg-op" data-op="${id}" min="0" max="100" step="1" value="${v}" aria-label="Opasitas ${esc(dispName(L))}" title="Opasitas ${v}%">`:''}
+function legendLayer(id,d){const L=LAY[id],s=A.st[id],cr=legendClassRows(id),key='l:'+id,eff=!!(s&&s.own&&s.anc.every(g=>g.on));
+ const open=lgState[key]!=null?lgState[key]:false;
+ const classes=(eff&&open&&cr.length)?cr.map(r=>`<div class="lg-row lg-cr" style="--d:${d+1}"><i class="lg-sw">${swatchClass(id,r.c)}</i><span>${esc(r.label)}</span></div>`).join('')+(L.lnote?`<div class="lg-note">${esc(L.lnote)}</div>`:''):'';
+ const car=cr.length?`<button type="button" class="lg-lh" data-lk="${key}" aria-expanded="${!!(eff&&open)}" aria-label="Kelas ${esc(dispName(L))}" ${eff?'':'disabled'}><i class="lg-car${eff&&open?' open':''}">${ICO.car}</i></button>`:'';
+ return `<div class="lg-lay${eff?'':' dim'}" data-id="${id}" style="--d:${d}"><div class="lg-lay-h">${car}<label><input type="checkbox" data-l="${id}"${s&&s.own?' checked':''}>${swatch(id)}<span class="atl-n">${esc(dispName(L))}</span></label>${opSlider(id)}</div>${classes}</div>`}
+function legendNode(n,d,parts){if(n.t==='l'){parts.push(legendLayer(n.id,d));return}
+ const i=nodes.indexOf(n),key='g:'+n.name,open=lgState[key]!=null?lgState[key]:!mobile();
+ const st=groupCheckState(i),chk=st==='all'?' checked':'';
+ parts.push(`<div class="lg-grp" data-g="${i}" style="--d:${d}"><div class="lg-gh${d?' lg-sh':''}"><button type="button" data-lk="${key}" aria-expanded="${open}"><i class="lg-car${open?' open':''}">${ICO.car}</i></button><label><input type="checkbox" data-gc="${i}"${chk}><span class="atl-n">${esc(n.name)}</span></label></div>`);
+ if(open){n.ch.forEach(c=>legendNode(c,d+1,parts));if(n.name==='01 PROGRESS')parts.push('<div class="lg-note">Buka panah di nama layer untuk rincian kelas simbologi.</div>')}
+ parts.push('</div>')}
 function legend(){const host=document.getElementById('lgAtlas');if(!host)return;
- const vis=id=>A.st[id]&&A.st[id].added;let html='';
- C.tree.forEach(top=>{const parts=[];
-  const walk=(n,d)=>{if(n.t==='l'){if(!vis(n.id))return;const L=LAY[n.id],cr=legendClassRows(n.id),key='l:'+n.id;
-    const open=lgState[key]!=null?lgState[key]:(!mobile()&&map.getSize().y>=520);
-    if(cr.length>1){parts.push(`<div class="lg-lay"><button type="button" class="lg-lh" data-lk="${key}" aria-expanded="${open}"><i class="lg-car${open?' open':''}">${ICO.car}</i>${esc(dispName(L))}</button>${open?cr.map(r=>`<div class="lg-row lg-cr"><i class="lg-sw">${swatchClass(n.id,r.c)}</i><span>${esc(r.label)}</span></div>`).join('')+(L.lnote?`<div class="lg-note">${esc(L.lnote)}</div>`:''):''}</div>`)}
-    else parts.push(`<div class="lg-row lg-lay1"><i class="lg-sw">${swatch(n.id)}</i><span>${esc(dispName(L))}</span></div>`+(L.lnote?`<div class="lg-note">${esc(L.lnote)}</div>`:''))}
-   else n.ch.forEach(c=>walk(c,d+1))};
-  walk(top,0);
-  if(parts.length){const key='g:'+top.name,open=lgState[key]!=null?lgState[key]:!mobile();
-   html+=`<div class="lg-gh"><button type="button" data-lk="${key}" aria-expanded="${open}"><i class="lg-car${open?' open':''}">${ICO.car}</i>${esc(top.name)}</button></div>${open?parts.join('')+(top.name==='01 PROGRESS'?'<div class="lg-note">Label kelas mengikuti ArcGIS (style_spec); sebagian label minggu tidak sama dengan tanggal data.</div>':''):''}`}});
- host.innerHTML=html;host.hidden=!html}
+ const tools=`<div class="lg-tools"><button type="button" class="lg-all" data-lg="all">Tampilkan semua</button><button type="button" class="lg-all lg-off" data-lg="none">Matikan semua</button></div>`;
+ const parts=[];C.tree.forEach(top=>legendNode(top,0,parts));
+ host.innerHTML=tools+parts.join('');host.hidden=false;
+ host.querySelectorAll('input[data-gc]').forEach(i=>{const st=groupCheckState(+i.dataset.gc);i.checked=st==='all';i.indeterminate=st==='some'});
+}
+function bindLegend(lg){
+ lg.addEventListener('click',e=>{
+  const all=e.target.closest('[data-lg]');if(all){e.preventDefault();e.stopPropagation();all.dataset.lg==='all'?showAll():hideAll();legend();return}
+  const b=e.target.closest('[data-lk]');if(!b||b.disabled)return;
+  if(e.target.closest('input,label,.lg-op'))return;
+  const k=b.dataset.lk;lgState[k]=!(lgState[k]!=null?lgState[k]:(k[0]==='l'?false:!mobile()));legend()});
+ lg.addEventListener('change',e=>{const t=e.target;
+  if(t.classList.contains('lg-op')||t.dataset.op){setOpacity(t.dataset.op,t.value/100);t.title='Opasitas '+t.value+'%';return}
+  if(t.dataset.l){setLayerOn(t.dataset.l,t.checked);legend()}
+  else if(t.dataset.gc!=null){const st=groupCheckState(+t.dataset.gc);setGroupOn(+t.dataset.gc,st!=='all');legend()}});
+ lg.addEventListener('input',e=>{const t=e.target;if(t.classList.contains('lg-op')||t.dataset.op){setOpacity(t.dataset.op,t.value/100);t.title='Opasitas '+t.value+'%'}})}
 function legendInit(){const lg=document.querySelector('.legend');if(!lg||document.getElementById('lgAtlas'))return;
- // baris lama "Batas Kebun" & "Blok Kebun" diganti simbol Atlas
  const old=document.getElementById('lgBatas');if(old){const r=old.closest('.lg-row');const nx=r&&r.nextElementSibling;r&&r.remove();if(nx&&/Blok Kebun/.test(nx.textContent))nx.remove()}
  const h=document.createElement('div');h.id='lgAtlas';h.className='lg-atlas';h.hidden=true;lg.appendChild(h);
  const t=lg.querySelector('.lg-title');
  if(t&&!t.querySelector('.lg-tg')){const b=document.createElement('button');b.type='button';b.className='lg-tg';b.setAttribute('aria-label','Ciutkan/perluas legenda');b.innerHTML=ICO.car;t.appendChild(b);
-  const apply=()=>{lg.classList.toggle('lg-collapsed',!!lgState.all);b.setAttribute('aria-expanded',!lgState.all)};
-  b.addEventListener('click',e=>{e.stopPropagation();lgState.all=!lgState.all;apply()});if(mobile())lgState.all=true;apply()}
- lg.addEventListener('click',e=>{const b=e.target.closest('[data-lk]');if(!b)return;const k=b.dataset.lk;lgState[k]=!(lgState[k]!=null?lgState[k]:(k[0]==='l'?(!mobile()&&map.getSize().y>=520):!mobile()));legend()});
- fitLegend();map.on('resize',fitLegend)}
+  const apply=()=>{lg.classList.toggle('lg-collapsed',!!lgState.all);b.setAttribute('aria-expanded',!lgState.all);saveLgStore()};
+  b.addEventListener('click',e=>{e.stopPropagation();lgState.all=!lgState.all;apply()});
+  if(lgState.all==null&&mobile())lgState.all=true;apply()}
+ bindLegend(lg);legend();fitLegend();map.on('resize',fitLegend)}
 function fitLegend(){const lg=document.querySelector('.legend');if(!lg||!map)return;const mh=map.getSize().y,loc=parseFloat(getComputedStyle(map.getContainer()).getPropertyValue('--loc-h'))||0,bot=28,reserve=Math.max(120,loc+16);map.getContainer().style.setProperty('--lg-top-reserve',reserve+'px');lg.style.setProperty('--lg-max',Math.max(mh-reserve-bot,80)+'px')}
 // ---------------- identify (popup atribut) ----------------
 function inRing(r,x,y){let c=false;for(let i=0,j=r.length-1;i<r.length;j=i++){const a=r[i],b=r[j];if((a[1]>y)!==(b[1]>y)&&x<(b[0]-a[0])*(y-a[1])/(b[1]-a[1])+a[0])c=!c}return c}
@@ -261,7 +311,7 @@ function hitPts(id,e,hit){const s=A.st[id],P=s.pts,m=map,k=256*Math.pow(2,m.getZ
 A.rowProps=rowProps;A.pre={};
 const featsOf=id=>{const s=A.st[id];return s.feats||s.data.features};
 A.setFeatures=(id,fs)=>{const s=A.st[id];s.feats=fs;if(!s.layer)return;const was=s.added;if(was)map.removeLayer(s.layer);
- s.layer=buildLayer(LAY[id],{type:'FeatureCollection',features:fs});if(was)s.layer.addTo(map);legend()};
+ s.layer=buildLayer(LAY[id],{type:'FeatureCollection',features:fs});if(was)s.layer.addTo(map);scheduleLegend()};
 A.setPointFilter=(id,fn)=>{const s=A.st[id],L=LAY[id];s.flt=fn;if(s.pts){assignCls(L,s.pts,fn);s.layer.redraw()}};
 // ---------------- tabel atribut (popup identify) ----------------
 const HIDE_F=new Set(['lp','style_key']);
@@ -269,44 +319,108 @@ const empty=v=>v==null||(typeof v==='string'&&v.trim()==='')||(typeof v==='numbe
 const BLN=['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
 const dFmt=s=>{const m=/^(\d{4})-(\d{2})-(\d{2})/.exec(s);return m?`${+m[3]} ${BLN[m[2]-1]} ${m[1]}`:String(s)};
 const trimN=(v,d)=>nf(v,d).replace(/(,\d*?)0+$/,'$1').replace(/,$/,'');
+const fmtAreaHa=v=>nf(v,2)+' ha';
+/* Area source for the popup badge + official table row (Finding D).
+   unit 'ha' = field already in hectares; 'm2' = square metres, converted /10000.
+   Badge/header/table text is always the same 'x,xx ha' string from this field.
+   Batas Kebun MUST use attribute LuasHa (288.6584 → display 288,66 ha).
+   Do NOT recompute from atlas_batas_kebun_dnp coordinates (6-decimal → 288,65). */
+const AREA_SOURCE={
+  batas_kebun_dnp:{field:'LuasHa',unit:'ha'},
+  blok_kebun:{field:'Shape_Area',unit:'m2'},
+  stage_1:{field:'Luas',unit:'ha'},stage_2:{field:'Luas',unit:'ha'},stage_3:{field:'Luas',unit:'ha'},stage_4:{field:'Luas',unit:'ha'},
+  boundary_pkkpr_8_602ha:{field:'LUAS',unit:'ha'},
+  up_land_low_land:{field:'Shape_Area',unit:'m2'},
+  boundary_banjir:{field:'Luas_1',unit:'ha'},
+  genangan_air:{field:'Shape_Area',unit:'m2'},
+  boundary_banjir_kunang:{field:'No_1',unit:'ha'},
+  jalan_maintenance:{field:'LuasHa',unit:'ha'},
+  jalan_realisasi:{field:'Shape_Area',unit:'m2'},
+  jalan_rencana:{field:'Shape_Area',unit:'m2'},
+  drain_realisasi:{field:'Shape_Area',unit:'m2'},
+  drain_rencana:{field:'Shape_Area',unit:'m2'},
+  rumpukan:{field:'Luas',unit:'ha'},
+  land_clearing:{field:'Luas',unit:'ha'},
+  status_lahan_dnp:{field:'Luas',unit:'ha'}
+};
+function areaSourceOf(id,p){const cfg=AREA_SOURCE[id];if(!cfg)return null;
+ const field=cfg.field,unit=cfg.unit,v=p?p[field]:undefined;let valueHa=null;
+ if(!empty(v)&&typeof v==='number'&&isFinite(v)){if(unit==='ha')valueHa=v;else if(unit==='m2')valueHa=v/10000}
+ return{field,unit,value:v,valueHa,text:valueHa==null?null:fmtAreaHa(valueHa)}}
+/* Raw `Luas` deviates from geometry on Boundary Banjir and Perimeter Road (Finding D).
+   Threshold 1%, same cut used in laporan_luas.md. */
+function rawLuasOffGeom(id,p){const v=p&&p.Luas;if(empty(v)||typeof v!=='number'||!isFinite(v))return false;
+ if(id==='boundary_banjir'){const ref=!empty(p.Luas_1)&&typeof p.Luas_1==='number'?p.Luas_1:(!empty(p.Shape_Area)&&typeof p.Shape_Area==='number'?p.Shape_Area/10000:null);
+  return ref!=null&&Math.abs(v-ref)/Math.max(Math.abs(ref),1e-9)>0.01}
+ if(id==='jalan_realisasi'){if(empty(p.Shape_Area)||typeof p.Shape_Area!=='number')return false;
+  return Math.abs(v-p.Shape_Area)/Math.max(Math.abs(p.Shape_Area),1e-9)>0.01}
+ return false}
+const TECH_RE=/^(OBJECTID(_\d+)?|FID|GlobalID|OID|Shape_Length|Shape_Leng|SHAPE_Leng|Shape_Area|ORIG_FID|FONT_CHARS|tessellate|extrude|visibility|drawOrder|icon|altitudeMo|timestamp|begin|end|descriptio)$/i;
+const MAIN_ORDER=['Name','Nama','N_Pemilik','Nama_SKTH','NoBlok','No_Blok','Stage','Status_Lah','Status','Progres','LuasHa','Luas','LUAS','Luas_1','No_1','Luasm2','Code','NameCode','Pengerjaan','Operator','Tanggal','Survey_Dat','REMARK','NAMOBJ','BUFF_DIST','Keliling','Panjang_Total_m'];
+const isTechKey=k=>TECH_RE.test(k);
 function labelOf(id,k){const T=window.P17&&P17.labels;const o=T&&((T.L[id]||{})[k]||T.G[k]);return o||[k.replace(/_/g,' '),'auto']}
 function fmtAttr(v,t){if(empty(v))return null;
  if(typeof v==='boolean')return v?'Ya':'Tidak';
  if(t==='date'||(typeof v==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(v)))return dFmt(v);
- if(typeof v==='number'){switch(t){case'ha':return nf(v,3)+' ha';case'm2':return nf(v,2)+' m²';case'm':return nf(v,2)+' m';case'm3':return nf(v,2)+' m³';case'int':case'id':return String(Math.round(v));default:return Number.isInteger(v)?String(v):trimN(v,4)}}
+ if(typeof v==='number'){switch(t){case'ha':case'ha_v':return fmtAreaHa(v);case'm2':return nf(v,2)+' m²';case'm':return nf(v,2)+' m';case'm3':return nf(v,2)+' m³';case'int':case'id':return String(Math.round(v));default:return Number.isInteger(v)?String(v):trimN(v,4)}}
  return String(v).trim()}
 const FALL=new Set(['Plan','plan']);
-function titleOf(L,p){const P=L.pop||{},k=P.title,v=k?p[k]:null;if(empty(v))return dispName(L);return(P.prefix||'')+(typeof v==='number'?(Number.isInteger(v)?v:nf(v,2)):String(v).trim())}
+function titleOf(L,p){const P=L.pop||{},k=P.title,v=k?p[k]:null;if(empty(v))return dispName(L).replace(/\s*\([^)]*\b[Hh]a\)\s*$/,'');return(P.prefix||'')+(typeof v==='number'?(Number.isInteger(v)?v:nf(v,2)):String(v).trim())}
+function attrRows(id,p,keys){const src=areaSourceOf(id,p);
+ return keys.map(k=>{let[lab,t]=labelOf(id,k);
+  let s,note='';
+  if(src&&k===src.field&&src.text)s=src.text;
+  else{
+   if(src&&k===src.field){if(src.unit==='ha')t='ha';else if(src.unit==='m2')t='m2'}
+   s=fmtAttr(p[k],t);
+   if(k==='Luas'&&rawLuasOffGeom(id,p)&&s)note=' (tidak sesuai geometri)';
+  }
+  return`<tr${s==null?' class="ap-nul"':''}><th scope="row"><span>${esc(lab)}</span>${lab!==k?`<small>${esc(k)}</small>`:''}</th><td>${s==null?'—':esc(s)+note}</td></tr>`}).join('')}
 function attrEntry(h,idx){const L=LAY[h.id],p=h.p,keys=Object.keys(p).filter(k=>!HIDE_F.has(k));
- const rows=keys.map(k=>{const[lab,t]=labelOf(h.id,k),s=fmtAttr(p[k],t);
-  return`<tr${s==null?' class="ap-nul"':''}><th scope="row"><span>${esc(lab)}</span>${lab!==k?`<small>${esc(k)}</small>`:''}</th><td>${s==null?'—':esc(s)}</td></tr>`}).join('');
+ const hideLuas=rawLuasOffGeom(h.id,p);
+ const main=[],tech=[];keys.forEach(k=>{if(k==='Luas'&&hideLuas)tech.push(k);else(isTechKey(k)?tech:main).push(k)});
+ const rank=k=>{const i=MAIN_ORDER.indexOf(k);return i<0?1000+keys.indexOf(k):i};main.sort((a,b)=>rank(a)-rank(b));
+ const src=areaSourceOf(h.id,p);
+ const rows=attrRows(h.id,p,main);
+ const areaRow=(src&&src.text&&!main.includes(src.field))?`<tr class="ap-area"><th scope="row"><span>Luas</span><small>${esc(src.field)}</small></th><td>${esc(src.text)}</td></tr>`:'';
  let ex='';const en=(A.enrich&&h.f)?A.enrich(h.id,h.f):[];
  if(en.length)ex=`<tr class="ap-sep"><th colspan="2">Data analitik</th></tr>`+en.map(([a,b])=>`<tr><th scope="row"><span>${esc(a)}</span></th><td>${esc(b)}</td></tr>`).join('');
+ const detBody=(tech.length?attrRows(h.id,p,tech):'')+ex;
+ const detail=detBody?`<details class="ap-detail"><summary>Detail</summary><table class="ap-t"><tbody>${detBody}</tbody></table></details>`:'';
  const cl=(L.render!=='simple'&&L.kind)?classByProps(L,p):null;
  const sym=cl&&cl.label&&cl.label!=='not specified'?`<tr class="ap-sym"><th scope="row"><span>Simbologi (legenda)</span></th><td>${esc(cl.label)}</td></tr>`:'';
- const txt=[dispName(L)+' — '+titleOf(L,p)].concat(keys.map(k=>{const[lab,t]=labelOf(h.id,k),s=fmtAttr(p[k],t);return lab+': '+(s==null?'—':s)})).concat(en.map(([a,b])=>a+': '+b)).join('\n');
- return{id:h.id,idx,title:titleOf(L,p),layer:dispName(L),n:keys.length,txt,
-  html:`<div class="ap-card" data-i="${idx}"${idx?' hidden':''}><div class="pp-h"><div class="t">${esc(titleOf(L,p))}</div><span class="s">${esc(dispName(L))}</span></div><div class="ap-scroll"><table class="ap-t"><tbody>${rows}${sym}${ex}</tbody></table></div><div class="ap-ft"><span>${keys.length} field${L.note?' · '+esc(L.note):''}</span><button type="button" class="ap-copy" data-i="${idx}" title="Salin semua atribut">Salin</button></div></div>`}}
+ const layerFull=dispName(L),layerShort=layerFull.replace(/\s*\([^)]*\b[Hh]a\)\s*$/,'');
+ const title=titleOf(L,p);
+ const same=String(title).trim().toLowerCase()===layerShort.toLowerCase()||String(title).trim().toLowerCase()===layerFull.toLowerCase();
+ const ha=src&&src.text?`<span class="ap-ha">${esc(src.text)}</span>`:'';
+ const sVis=same?`<span class="s" hidden>${esc(layerFull)}</span>`:`<span class="s">${esc(layerShort)}</span>`;
+ const txt=[layerFull+' — '+title].concat(keys.map(k=>{const[lab,t]=labelOf(h.id,k);let s;if(src&&k===src.field&&src.text)s=src.text;else s=fmtAttr(p[k],src&&k===src.field?(src.unit==='ha'?'ha':src.unit==='m2'?'m2':t):t);const note=(k==='Luas'&&hideLuas&&s)?' (tidak sesuai geometri)':'';return lab+': '+(s==null?'—':s+note)})).concat(en.map(([a,b])=>a+': '+b)).join('\n');
+ return{id:h.id,idx,title,layer:layerFull,n:keys.length,txt,
+  html:`<div class="ap-card" data-i="${idx}" data-layer="${esc(layerFull)}"${idx?' hidden':''}><div class="pp-h"><div class="t">${esc(title)}</div>${sVis}${ha}</div><div class="ap-scroll"><table class="ap-t"><tbody>${areaRow}${rows}${sym}</tbody></table>${detail}</div><div class="ap-ft"><span>${keys.length} field${L.note?' · '+esc(L.note):''}</span><button type="button" class="ap-copy" data-i="${idx}" title="Salin semua atribut">Salin</button></div></div>`}}
 function attrHtml(hs){const es=[];hs.forEach(h=>h.hit.forEach(x=>{if(es.length<10)es.push(attrEntry({id:h.id,p:x.p,f:x.f},es.length))}));
- const tabs=es.length>1?`<div class="ap-tabs" role="tablist">${es.map((e,i)=>`<button type="button" role="tab" class="${i?'':'on'}" data-t="${i}" title="${esc(e.layer)}">${esc(e.layer.length>20?e.layer.slice(0,19)+'…':e.layer)}</button>`).join('')}</div><div class="ap-n">${es.length} objek di titik ini</div>`:'';
+ const tabs=es.length>1?`<div class="ap-pick"><label class="ap-pick-l" for="apSel">Layer</label><select class="ap-sel" id="apSel">${es.map((e,i)=>`<option value="${i}"${i?'':' selected'}>${esc(e.layer)}${e.title&&e.title!==e.layer?' — '+esc(e.title):''}</option>`).join('')}</select><div class="ap-n">${es.length} objek di titik ini</div></div>`:'';
  return{html:`<div class="atl-pop ap">${tabs}${es.map(e=>e.html).join('')}</div>`,es}}
 function wireAttr(el,es){if(!el)return;
- el.querySelectorAll('.ap-tabs button').forEach(b=>b.onclick=()=>{el.querySelectorAll('.ap-tabs button').forEach(x=>x.classList.toggle('on',x===b));el.querySelectorAll('.ap-card').forEach(c=>c.hidden=c.dataset.i!==b.dataset.t)});
+ const sel=el.querySelector('.ap-sel');
+ if(sel&&!sel._apBound){sel._apBound=1;sel.addEventListener('change',()=>{el.querySelectorAll('.ap-card').forEach(c=>c.hidden=String(c.dataset.i)!==String(sel.value))})}
  el.querySelectorAll('.ap-copy').forEach(b=>b.onclick=()=>{const t=es[+b.dataset.i].txt;const done=()=>{b.textContent='Tersalin ✓';setTimeout(()=>b.textContent='Salin',1400)};
   const fb=()=>{const ta=document.createElement('textarea');ta.value=t;ta.style.cssText='position:fixed;opacity:0';document.body.appendChild(ta);ta.select();try{document.execCommand('copy')}catch(e){}ta.remove();done()};
   if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(t).then(done,fb);else fb()})}
-function showAttr(ll,hs){const o=attrHtml(hs);const pop=window.L.popup({className:'pp pp-atlas pp-attr',minWidth:260,maxWidth:360,autoPanPadding:[16,70],keepInView:true}).setLatLng(ll).setContent(o.html).openOn(map);
- wireAttr(pop.getElement(),o.es);A.lastPopup={n:o.es.length};
- // tinggi tabel mengikuti tinggi peta (peta bisa pendek karena kartu kegiatan + dock)
- const mh=Math.max(110,Math.min(340,map.getSize().y-170));pop.getElement().querySelectorAll('.ap-scroll').forEach(e=>e.style.maxHeight=mh+'px');pop.update();return pop}
-A.attrHtml=attrHtml;A.showAttr=showAttr;A.labelOf=labelOf;A.fmtAttr=fmtAttr;
+function showAttr(ll,hs){const o=attrHtml(hs);
+ const vw=(map&&map.getSize()?map.getSize().x:window.innerWidth)||360;
+ const cap=Math.min(400,Math.max(260,Math.round(vw*0.85)));
+ const w=Math.min(380,cap);
+ const pop=window.L.popup({className:'pp pp-atlas pp-attr',minWidth:Math.min(280,w),maxWidth:Math.min(400,cap),autoPanPadding:[16,70],keepInView:true}).setLatLng(ll).setContent(o.html).openOn(map);
+ const hook=()=>wireAttr(pop.getElement(),o.es);hook();A.lastPopup={n:o.es.length};
+ pop.update();hook();return pop}
+A.attrHtml=attrHtml;A.showAttr=showAttr;A.labelOf=labelOf;A.fmtAttr=fmtAttr;A.fmtAreaHa=fmtAreaHa;A.areaSourceOf=areaSourceOf;A.AREA_SOURCE=AREA_SOURCE;A.rawLuasOffGeom=rawLuasOffGeom;
 function identify(e){
  const t=e.originalEvent&&e.originalEvent.target;if(t&&t.closest&&t.closest('.leaflet-interactive,.leaflet-marker-icon,.leaflet-popup,.leaflet-control,#locTop'))return;
  const hs=hitsAt(e);if(!hs.length)return;showAttr(e.latlng,hs)}
 // ---------------- init ----------------
 A.init=function(o){
  map=o.map;A.map=map;ensureDefs();
- C.tree.forEach(t=>indexTree(t,[]));
+ C.tree.forEach(t=>indexTree(t,[]));restoreLgStore();
  A.ctl=buildControl(o.bases);A.ctl.addTo(map);A.ctl.addOverlay=addOverlay;
  const ch=document.createElement('div');ch.id='atlLoad';ch.className='atl-load';ch.hidden=true;ch.setAttribute('role','status');ch.innerHTML='<span class="atl-spin on"></span><span id="atlLoadTx"></span>';map.getContainer().appendChild(ch);
  legendInit();map.on('moveend zoomend resize',scheduleLabels);map.on('zoomstart',()=>{if(lblPane)lblPane.textContent=''});map.on('click',identify);map.on('resize',fit);
@@ -316,8 +430,9 @@ A.init=function(o){
  return A.ctl};
 A.fitLegend=fitLegend;
 A.ensure=id=>load(id);
-A.setVisible=(id,on)=>{A.st[id].own=on;apply(id);refreshTOC()};
-A.showAll=()=>{nodes.forEach(n=>{n.on=true;n.collapsed=false});Object.values(A.st).forEach(s=>s.own=true);applyAll()};
+A.setVisible=(id,on)=>setLayerOn(id,on);
+A.showAll=showAll;A.hideAll=hideAll;A.setOpacity=setOpacity;A.setGroupOn=setGroupOn;A.groupCheckState=groupCheckState;
+A.saveLgStore=saveLgStore;A.restoreLgStore=restoreLgStore;
 A.isShown=id=>!!A.st[id].added;
 A.inPoly=inPoly;A.classOf=classOf;A.effective=effective;A.lay=LAY;A.relabel=relabel;A.hitsAt=hitsAt;A.classByProps=classByProps;A.identify=identify;
 })();

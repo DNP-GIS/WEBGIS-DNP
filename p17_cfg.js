@@ -4,5 +4,5 @@ window.P17_PATTERNS="<pattern id=\"p17-maintenance-road\" patternUnits=\"userSpa
 (function(){const C=window.ATLAS_CFG,P=window.P17;if(!C||!P)return;
  Object.keys(P.layers).forEach(i=>{C.layers[i]=P.layers[i]});
  P.remove.forEach(i=>{delete C.layers[i]});C.order=C.order.filter(i=>!P.remove.includes(i));Object.keys(P.layers).forEach(i=>C.order.unshift(i));
- const strip=n=>{if(n.t==='g')n.ch=n.ch.filter(c=>!(c.t==='l'&&P.remove.includes(c.id))).map(strip);return n};C.tree=C.tree.map(strip);C.tree.unshift(P.tree);
+ const strip=n=>{if(n.t==='g')n.ch=n.ch.filter(c=>!(c.t==='l'&&P.remove.includes(c.id))).map(strip);return n};C.tree=C.tree.map(strip);C.tree.unshift(P.tree);const RN={'03 BATAS':'02 BATAS','02 REFERENCE DATA':'03 REFERENCE DATA'};C.tree.forEach(n=>{if(RN[n.name])n.name=RN[n.name]});
  window.ATLAS_PATTERNS=(window.ATLAS_PATTERNS||'')+window.P17_PATTERNS;})();

@@ -4,11 +4,14 @@ const CUR_CODE='1';
 // Dasar target persen LC & Rumpukan: 'batas_kebun' (keputusan pemilik) atau 'status_lahan' (union Status Lahan DNP) - ubah HANYA konstanta ini
 const TARGET_BASIS='batas_kebun';
 const BATAS_COLOR='#333333',BLOK_COLOR='#555555';
-const VER='202611192500';
+const VER='202611201400';
 const DATA_URL='data/land_clearing.geojson?v='+VER;
 const BATAS_URL='data/batas_kebun.geojson?v='+VER;
 const BLOK_URL='data/blok_sawit.geojson?v='+VER;
+// kebun_dnp = union Status Lahan DNP (LuasHa 491,97 ha), BUKAN Batas Kebun (288,66 ha).
+// Hanya dimuat jika TARGET_BASIS==='status_lahan'. Jangan tertukar dengan angka Batas Kebun.
 const KEBUN_URL='data/kebun_dnp.geojson?v='+VER;
+const BLOK_ATLAS_URL='data/atlas_blok_kebun.geojson?v='+VER;
 const BLN=['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
 const BLN_FULL=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
 const osm=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap'});
@@ -61,7 +64,7 @@ function fillKpi(){const K=window.KPIV,A=window.Analytics;if(!K)return;const set
  if(A&&A.kpi){set('kAvg',A.kpi.hari?fmt(A.kpi.avg):'–');set('kHari',A.kpi.hari?fmtN(A.kpi.hari,0):'–');set('kSisa',fmt(A.kpi.sisa))}}
 window.fillKpi=fillKpi;
 const getJ=u=>Vault.getJSON(u);   // data terenkripsi: fetch -> dekripsi AES-GCM -> parse (lihat login.js)
-(window.EXTRAS_READY||Promise.resolve()).then(()=>Promise.all([getJ(DATA_URL),getJ(BATAS_URL).catch(e=>{console.warn('Batas kebun gagal dimuat',e);return null}),getJ(BLOK_URL).catch(e=>{console.warn('Blok sawit gagal dimuat',e);return null}),TARGET_BASIS==='status_lahan'?getJ(KEBUN_URL).catch(e=>null):Promise.resolve(null)])).then(([d,bk,bl,kd])=>{data=d;if(window.Atlas)Atlas.pre.land_clearing=d;
+(window.EXTRAS_READY||Promise.resolve()).then(()=>Promise.all([getJ(DATA_URL),getJ(BATAS_URL).catch(e=>{console.warn('Batas kebun gagal dimuat',e);return null}),getJ(BLOK_URL).catch(e=>{console.warn('Blok sawit gagal dimuat',e);return null}),TARGET_BASIS==='status_lahan'?getJ(KEBUN_URL).catch(e=>null):Promise.resolve(null),getJ(BLOK_ATLAS_URL).catch(e=>{console.warn('Blok kebun (atlas) gagal dimuat',e);return null})])).then(([d,bk,bl,kd,ab])=>{data=d;if(window.Atlas){Atlas.pre.land_clearing=d;if(ab)Atlas.pre.blok_kebun=ab}
  // Layer lama blok/batas = SUMBER ANALITIK (angka dashboard, choropleth, titik-dalam-poligon). Tampilan peta memakai layer Atlas
  // (Batas Kebun DNP & Blok Kebun di grup 03 BATAS), jadi layer lama dibuat tak terlihat & tak interaktif (stroke 0, tanpa tooltip/popup).
  if(bl){nBlok=bl.features.length;blok=L.geoJSON(bl,{pane:'blokPane',interactive:false,style:{color:BLOK_COLOR,weight:0,opacity:0,fill:true,fillOpacity:0}}).addTo(map)}
@@ -77,7 +80,15 @@ const getJ=u=>Vault.getJSON(u);   // data terenkripsi: fetch -> dekripsi AES-GCM
  const last=ds[ds.length-1];
  if(last){const[y,m]=last.split('-');$('periode').textContent=`Periode: ${BLN_FULL[m-1]} ${y}`;$('lastUpd').textContent=tglFull(last);window.KPIV=Object.assign(window.KPIV||{},{octL:`LC ${BLN_FULL[m-1]} ${y}`})}
  window.KPIV=Object.assign(window.KPIV||{},{batasTxt:bk?fmt(batasHa):'–',blokTxt:bl?fmtN(nBlok,0):'–'});
- if(bl){const lb=bl.features.reduce((t,f)=>t+(+f.properties.LuasHa||0),0);window.KPIV.blokS=`Total ${fmt(lb)} ha`}
+ if(bl){// blok_sawit tidak punya Shape_Area (hanya LuasHa 2 desimal, Σ 1.172,98 ha).
+  // atlas_blok_kebun punya Shape_Area (m²); Σ = 1.173,06 ha (Finding D).
+  if(ab&&ab.features&&ab.features.some(f=>f.properties&&f.properties.Shape_Area!=null)){
+   const lb=ab.features.reduce((t,f)=>t+(+f.properties.Shape_Area||0),0)/10000;
+   window.KPIV.blokS=`Total ${fmt(lb)} ha (Σ Shape_Area)`;window.KPIV.blokBasis='Shape_Area (atlas_blok_kebun)';
+  }else{
+   const lb=bl.features.reduce((t,f)=>t+(+f.properties.LuasHa||0),0);
+   window.KPIV.blokS=`Total ${fmt(lb)} ha`;window.KPIV.blokBasis='LuasHa (blok_sawit)';
+  }}
  const bases={'Citra Satelit (Esri)':sat,'OpenStreetMap':osm,'Polos (Putih)':blank};
  // Kontrol layer berkelompok ala ArcGIS (atlas.js); jika modul Atlas tak tersedia -> kontrol Leaflet biasa
  window.layersCtl=window.Atlas?Atlas.init({map,bases}):L.control.layers(bases,{}).addTo(map);
@@ -86,7 +97,15 @@ const getJ=u=>Vault.getJSON(u);   // data terenkripsi: fetch -> dekripsi AES-GCM
   if(id==='blok_kebun'&&bl){const lp=(f.properties.lp||[])[0];if(lp)o=bl.features.find(g=>g.geometry&&(g.geometry.type==='Polygon'?Atlas.inPoly(g.geometry.coordinates,lp[0],lp[1]):g.geometry.coordinates.some(p=>Atlas.inPoly(p,lp[0],lp[1]))))}
   else if(id==='batas_kebun_dnp'&&bk)o=bk.features[0];
   if(!o)return[];const src=id==='blok_kebun'?'blok_sawit':'batas_kebun';
-  return Object.entries(o.properties).map(([k,x])=>[src+'.'+k,(x==null||String(x).trim()==='')?'—':(typeof x==='number'?fmtN(x,Number.isInteger(x)?0:3):String(x).trim())])};
+  return Object.entries(o.properties).map(([k,x])=>{
+   if(x==null||String(x).trim()==='')return[src+'.'+k,'—'];
+   if(typeof x==='number'){
+    if(/^(LuasHa|Luas|LUAS|Luas_1|No_1)$/i.test(k))return[src+'.'+k,fmt(x)+' ha'];
+    if(/^(Shape_Area|Luasm2)$/i.test(k))return[src+'.'+k,fmt(x)+' m²'];
+    return[src+'.'+k,fmtN(x,Number.isInteger(x)?0:3)];
+   }
+   return[src+'.'+k,String(x).trim()];
+  })};
  northCtl.addTo(map);
  FIDS.forEach(i=>$(i).onchange=render);
  $('reset').onclick=()=>{FIDS.forEach(i=>$(i).value='');render()};

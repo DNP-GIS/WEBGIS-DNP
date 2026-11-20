@@ -7,7 +7,7 @@
 // disimpan di sessionStorage.
 (function(){
 'use strict';
-const VER='202611192500',ITER_DUMMY=600000,THROTTLE_KEY='dnp_f';
+const VER='202611201400',ITER_DUMMY=600000,THROTTLE_KEY='dnp_f';
 const MSG_BAD='User atau password salah';
 const te=new TextEncoder();
 const $=id=>document.getElementById(id);
