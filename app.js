@@ -3,7 +3,7 @@ const codeLbl=c=>c==null||c===''?'–':String(c);
 // Dasar target persen LC & Rumpukan: 'batas_kebun' (keputusan pemilik) atau 'status_lahan' (union Status Lahan DNP) - ubah HANYA konstanta ini
 const TARGET_BASIS='batas_kebun';
 const BATAS_COLOR='#333333',BLOK_COLOR='#555555';
-const VER='202611210300';
+const VER='202611210600';
 const DATA_URL='data/land_clearing.geojson?v='+VER;
 const BATAS_URL='data/batas_kebun.geojson?v='+VER;
 const BLOK_URL='data/blok_sawit.geojson?v='+VER;

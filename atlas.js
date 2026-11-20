@@ -221,11 +221,11 @@ function legendLayer(id,d){const L=LAY[id],s=A.st[id],cr=legendClassRows(id),key
  const open=lgState[key]!=null?lgState[key]:false;
  const classes=(eff&&open&&cr.length)?cr.map(r=>r.sd?SDm().legendRowHtml(r.sd,d+1):`<div class="lg-row lg-cr" style="--d:${d+1}"><i class="lg-sw">${swatchClass(id,r.c)}</i><span>${esc(r.label)}</span></div>`).join('')+(L.lnote?`<div class="lg-note">${esc(L.lnote)}</div>`:''):'';
  const car=cr.length?`<button type="button" class="lg-lh" data-lk="${key}" aria-expanded="${!!(eff&&open)}" aria-label="Kelas ${esc(dispName(L))}" ${eff?'':'disabled'}><i class="lg-car${eff&&open?' open':''}">${ICO.car}</i></button>`:'';
- return `<div class="lg-lay${eff?'':' dim'}" data-id="${id}" style="--d:${d}"><div class="lg-lay-h">${car}<label><input type="checkbox" data-l="${id}"${s&&s.own?' checked':''}>${swatch(id)}<span class="atl-n">${esc(dispName(L))}</span></label>${opSlider(id)}${zoomBtn('l',id)}</div>${classes}</div>`}
+ return `<div class="lg-lay${eff?'':' dim'}" data-id="${id}" style="--d:${d}"><div class="lg-lay-h">${car}<label><input type="checkbox" data-l="${id}"${s&&s.own?' checked':''}>${swatch(id)}<span class="atl-n" title="${esc(dispName(L))}">${esc(dispName(L))}</span></label>${opSlider(id)}${zoomBtn('l',id)}</div>${classes}</div>`}
 function legendNode(n,d,parts){if(n.t==='l'){parts.push(legendLayer(n.id,d));return}
  const i=nodes.indexOf(n),key='g:'+n.name,open=lgState[key]!=null?lgState[key]:!mobile();
  const st=groupCheckState(i),chk=st==='all'?' checked':'';
- parts.push(`<div class="lg-grp" data-g="${i}" style="--d:${d}"><div class="lg-gh${d?' lg-sh':''}"><button type="button" data-lk="${key}" aria-expanded="${open}"><i class="lg-car${open?' open':''}">${ICO.car}</i></button><label><input type="checkbox" data-gc="${i}"${chk}><span class="atl-n">${esc(n.name)}</span></label>${zoomBtn('g',i)}</div>`);
+ parts.push(`<div class="lg-grp" data-g="${i}" style="--d:${d}"><div class="lg-gh${d?' lg-sh':''}"><button type="button" data-lk="${key}" aria-expanded="${open}"><i class="lg-car${open?' open':''}">${ICO.car}</i></button><label><input type="checkbox" data-gc="${i}"${chk}><span class="atl-n" title="${esc(n.name)}">${esc(n.name)}</span></label>${zoomBtn('g',i)}</div>`);
  if(open){n.ch.forEach(c=>legendNode(c,d+1,parts));if(n.name==='01 PROGRESS')parts.push('<div class="lg-note">Buka panah di nama layer untuk rincian kelas simbologi.</div>')}
  parts.push('</div>')}
 function legend(){const host=document.getElementById('lgAtlas');if(!host)return;

@@ -458,7 +458,7 @@ function renderPB(){const pane=$('p-pb');if(!K.P){pane.innerHTML='<div class="em
 A.TABS.ring=renderRing;A.TABS.kurva=renderKurva;A.TABS.pb=renderPB;
 function boot(){
  if(!A.ready){setTimeout(boot,120);return}
- Vault.getJSON('data/progres.json?v=202611210300').then(P=>{K.P=P;K.F=figures(P);
+ Vault.getJSON('data/progres.json?v=202611210600').then(P=>{K.P=P;K.F=figures(P);
   renderCards();A.renderTab();
   const d=P.meta.tanggal_data,[y,m]=d.split('-');const per=$('periode'),up=$('lastUpd');
   if(per)per.textContent=`Periode: ${['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'][m-1]} ${y}`;if(up)up.textContent=tg(d).replace(/ (\w+) /,(a,b)=>' '+['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'][BLN.indexOf(b)]+' ');

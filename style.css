@@ -471,7 +471,7 @@ body.authed #login{display:none}
 .legend.lg-collapsed>:not(.lg-title){display:none!important}.legend.lg-collapsed{min-width:0}.legend.lg-collapsed .lg-title{margin-bottom:0}
 .legend .lg-atlas[hidden]{display:none}
 .legend .lg-gh{margin:7px 0 1px;padding-top:6px;border-top:1px solid var(--line)}
-.legend .lg-gh button,.legend .lg-lh{display:flex;align-items:center;width:100%;border:0;background:none;padding:2px 0;text-align:left;cursor:pointer;color:var(--g8);font:800 10.5px/18px 'Plus Jakarta Sans',sans-serif;letter-spacing:.8px;text-transform:uppercase}
+.legend .lg-gh button,.legend .lg-lh{display:flex;align-items:center;flex:0 0 auto;width:auto;max-width:none;border:0;background:none;padding:2px 0;text-align:left;cursor:pointer;color:var(--g8);font:800 10.5px/18px 'Plus Jakarta Sans',sans-serif;letter-spacing:.8px;text-transform:uppercase}
 .legend .lg-lh{font-weight:600;font-size:12.5px;letter-spacing:0;text-transform:none;color:var(--ink);padding-left:4px}
 .legend i.lg-car{width:14px;height:14px;margin:0 5px 0 0;display:grid;place-items:center;color:var(--mut)}
 .legend i.lg-car svg{transform:rotate(-90deg);transition:transform .15s}.legend i.lg-car.open svg{transform:none}
@@ -613,7 +613,7 @@ body.authed #login{display:none}
 .legend input[type=checkbox]:indeterminate{accent-color:var(--g8)}
 .legend .lg-lay{padding:1px 0 1px calc(var(--d,0)*10px)}
 .legend .lg-lay-h{display:flex;align-items:center;gap:4px;min-width:0}
-.legend .lg-lay-h .atl-n,.legend .lg-gh .atl-n{min-width:0;flex:1;word-break:normal;overflow-wrap:anywhere;white-space:normal}
+.legend .lg-lay-h .atl-n,.legend .lg-gh .atl-n{min-width:0;flex:1 1 auto;word-break:normal;overflow-wrap:normal;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;writing-mode:horizontal-tb}
 .legend .lg-lay.dim{opacity:.55}
 .legend .lg-op{flex:none;width:52px;height:16px;margin:0;accent-color:var(--g8);cursor:pointer}
 .legend .lg-cr{padding-left:calc(var(--d,1)*10px + 16px)}
