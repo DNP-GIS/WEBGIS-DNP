@@ -212,12 +212,13 @@ function attach(atlas){if(!atlas||!atlas.st||!atlas.setFeatures)return()=>{};
 /** Isi `host` (elemen) dengan dua input tanggal + Reset. Hanya memakai textContent / atribut, tanpa innerHTML data. */
 function mountControl(host,opts){
  if(!host||typeof document==='undefined')return null;opts=opts||{};
+ if(typeof window!=='undefined'&&window.DateRange)return window.DateRange.mount(host,{variant:'legend',sumId:'sdSum'});
  const d=document,mk=(t,c,x)=>{const e=d.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e};
  host.textContent='';const box=mk('div','sd-ctl');box.setAttribute('role','group');box.setAttribute('aria-label','Simbologi tanggal');
  box.appendChild(mk('div','sd-title','Simbologi tanggal'));
  const row=mk('div','sd-two');
- const lf=mk('label',null,'Dari'),inF=mk('input');inF.type='date';inF.id='sdFrom';lf.appendChild(inF);
- const lt=mk('label',null,'Sampai'),inT=mk('input');inT.type='date';inT.id='sdTo';lt.appendChild(inT);
+ const lf=mk('label',null,'Dari'),inF=mk('input');inF.type='text';inF.id='sdFrom';inF.setAttribute('inputmode','numeric');inF.setAttribute('placeholder','YYYY-MM-DD');lf.appendChild(inF);
+ const lt=mk('label',null,'Sampai'),inT=mk('input');inT.type='text';inT.id='sdTo';inT.setAttribute('inputmode','numeric');inT.setAttribute('placeholder','YYYY-MM-DD');lt.appendChild(inT);
  row.appendChild(lf);row.appendChild(lt);box.appendChild(row);
  const rs=mk('button','sd-reset','Reset');rs.type='button';rs.id='sdReset';
  const sum=mk('div','sd-sum');sum.id='sdSum';sum.setAttribute('aria-live','polite');

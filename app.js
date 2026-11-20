@@ -1,10 +1,9 @@
-// Label Code: diambil dari style_spec.json (via p17_cfg.js: kelas simbologi layer LC). Code = penanda minggu pelaporan, bukan diturunkan dari tanggal.
-const CODE_LABELS=(window.P17&&P17.codeLabels&&P17.codeLabels.land_clearing)||{"1":"LC Code 1 (minggu ini)","0":"LC Code 0 (hingga 7 Nov)"};
-const CUR_CODE='1';
+// Field Code tetap ada di atribut sumber (popup/tabel) tetapi tidak dipakai filter/UI/"minggu ini".
+const codeLbl=c=>c==null||c===''?'–':String(c);
 // Dasar target persen LC & Rumpukan: 'batas_kebun' (keputusan pemilik) atau 'status_lahan' (union Status Lahan DNP) - ubah HANYA konstanta ini
 const TARGET_BASIS='batas_kebun';
 const BATAS_COLOR='#333333',BLOK_COLOR='#555555';
-const VER='202611202300';
+const VER='202611210100';
 const DATA_URL='data/land_clearing.geojson?v='+VER;
 const BATAS_URL='data/batas_kebun.geojson?v='+VER;
 const BLOK_URL='data/blok_sawit.geojson?v='+VER;
@@ -25,34 +24,41 @@ const fmt=n=>n.toLocaleString('id-ID',{minimumFractionDigits:2,maximumFractionDi
 const fmtN=(n,d)=>n.toLocaleString('id-ID',{minimumFractionDigits:d,maximumFractionDigits:d});
 const v=x=>(x===null||x===undefined||x==='')?'-':x;
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const codeLbl=c=>CODE_LABELS[c]||('Code '+c);
 const tgl=s=>{if(!s||s==='-')return'-';const[y,m,d]=s.split('-');return `${+d} ${BLN[m-1]} ${y}`};
 const tglFull=s=>{if(!s)return'-';const[y,m,d]=s.split('-');return `${+d} ${BLN_FULL[m-1]} ${y}`};
 function group(fs,key,lab=k=>k){const g={};fs.forEach(f=>{const k=v(f.properties[key]);g[k]=(g[k]||0)+f.properties.Luas});return g}
 function bars(g,lab=k=>k,keys,cls=()=>'',dim){keys=keys||Object.keys(g).sort();const mx=Math.max(...Object.values(g),0),tot=Object.values(g).reduce((a,b)=>a+b,0);
  return keys.map(k=>`<div class="bi"${dim?` data-hl="${dim}:${esc(k)}" tabindex="0" role="button" title="Klik untuk menyorot &amp; zoom ke peta"`:''}><div class="row"><span>${esc(lab(k))}</span><b>${fmt(g[k])} ha<em>${tot?fmtN(g[k]/tot*100,1):0}%</em></b></div><div class="bar"><div class="${cls(k)}" style="width:${mx?g[k]/mx*100:0}%"></div></div></div>`).join('')||'<div class="empty">Tidak ada data</div>'}
-const FIDS=['fCode','fPeng','fOp','fFrom','fTo'];
-function filtered(){const c=$('fCode').value,pg=$('fPeng').value,op=$('fOp').value,a=$('fFrom').value,b=$('fTo').value;
+const FIDS=['fPeng','fOp'];
+function dateR(){const DR=window.DateRange;if(!DR)return{from:'',to:''};const r=DR.getRange();return{from:r.from||'',to:r.to||''}}
+function matchDate(p){const r=dateR(),tg=p.Tanggal||'';if((r.from||r.to)&&!tg)return false;if(r.from&&tg<r.from)return false;if(r.to&&tg>r.to)return false;return true}
+function weekR(){const DR=window.DateRange;return DR?DR.presetRange('minggu_ini'):{from:'',to:''}}
+function inWeek(t,w){return t&&w&&w.from&&t>=w.from&&t<=w.to}
+function filtered(){const pg=$('fPeng')&&$('fPeng').value,op=$('fOp')&&$('fOp').value;
  return data.features.filter(f=>{const p=f.properties;
-  if(c&&p.Code!=c)return false;if(pg&&v(p.Pengerjaan)!=pg)return false;if(op&&v(p.Operator)!=op)return false;
-  if((a||b)&&!p.Tanggal)return false;if(a&&p.Tanggal<a)return false;if(b&&p.Tanggal>b)return false;return true})}
+  if(pg&&v(p.Pengerjaan)!=pg)return false;if(op&&v(p.Operator)!=op)return false;
+  return matchDate(p)})}
+function mapFiltered(){const pg=$('fPeng')&&$('fPeng').value,op=$('fOp')&&$('fOp').value;
+ return data.features.filter(f=>{const p=f.properties;
+  if(pg&&v(p.Pengerjaan)!=pg)return false;if(op&&v(p.Operator)!=op)return false;return true})}
 function render(){const fs=filtered();
- if(window.Atlas&&Atlas.st&&Atlas.st.land_clearing)Atlas.setFeatures('land_clearing',fs);   // LC digambar modul Atlas (simbologi style_spec); popup = tabel atribut
+ if(window.Atlas&&Atlas.st&&Atlas.st.land_clearing)Atlas.setFeatures('land_clearing',mapFiltered());   // rentang tanggal tidak membuang fitur (simbologi arsir); alat/operator tetap memotong
  if(first&&fs.length){const b=L.geoJSON({type:'FeatureCollection',features:fs}).getBounds();if(batas)b.extend(batas.getBounds());homeBounds=b;map.fitBounds(b,{padding:[20,20]});first=false;const h=location.hash.match(/^#(\d+)\/(-?[\d.]+)\/(-?[\d.]+)/);if(h)map.setView([+h[2],+h[3]],+h[1])}
  const tot=fs.reduce((t,f)=>t+f.properties.Luas,0);
  const nAct=FIDS.filter(i=>$(i).value).length;
  $('summary').innerHTML=`<div class="kv">Jumlah poligon LC <b id="nPoly">${fs.length}</b></div><div class="kv">Total luas LC <b><span id="totLuas">${fmt(tot)}</span> ha</b></div>`+(batas?`<div class="kv">Luas Batas Kebun <b><span id="luasBatas">${fmt(batasHa)}</span> ha</b></div>`:'')+(blok?`<div class="kv">Jumlah Blok <b id="nBlok">${nBlok}</b></div>`:'');
- const gc=group(fs,'Code');
- $('perCode').innerHTML=bars(gc,codeLbl,Object.keys(gc).sort().reverse(),k=>k=='1'?'b-oct':k=='0'?'b-sep':'','code');
- $('perPeng').innerHTML=bars(group(fs,'Pengerjaan'),k=>k,undefined,()=>'','peng');
+ if($('perPeng'))$('perPeng').innerHTML=bars(group(fs,'Pengerjaan'),k=>k,undefined,()=>'','peng');
  $('perOp').innerHTML=bars(group(fs,'Operator'),k=>k,undefined,()=>'','op');
  const gt=group(fs,'Tanggal');$('perTgl').innerHTML=bars(gt,tgl,Object.keys(gt).sort((x,y)=>x=='-'?1:y=='-'?-1:x<y?-1:1),()=>'','tgl');
  // KPI
- const cur=fs.filter(f=>f.properties.Code==CUR_CODE).reduce((t,f)=>t+f.properties.Luas,0);
+ const w=weekR();
+ const cur=data.features.filter(f=>inWeek(f.properties.Tanggal,w)).reduce((t,f)=>t+f.properties.Luas,0);
  const officialPct=(window.Kegiatan&&Kegiatan.F&&Kegiatan.F.lc)?Kegiatan.F.lc.pct:null;
- const pct=(officialPct!=null&&!nAct)?officialPct:(batasHa?tot/batasHa*100:0);
- window.KPIV=Object.assign(window.KPIV||{},{tot,n:fs.length,N:data.features.length,nAct,cur,pct,batasHa});fillKpi();
- $('fCount').hidden=!nAct;$('fCount').textContent=nAct+' aktif';
+ const dateOn=!!(dateR().from||dateR().to);
+ const nAll=nAct+(dateOn?1:0);
+ const pct=(officialPct!=null&&!nAll)?officialPct:(batasHa?tot/batasHa*100:0);
+ window.KPIV=Object.assign(window.KPIV||{},{tot,n:fs.length,N:data.features.length,nAct:nAll,cur,pct,batasHa});fillKpi();
+ if($('fCount')){$('fCount').hidden=!nAll;$('fCount').textContent=nAll+' aktif'}
  window.RENDERED=fs.length;window.TOTAL=tot;
  if(window.Analytics)Analytics.update(fs)}
 let batasHa=0;
@@ -74,9 +80,9 @@ const getJ=u=>Vault.getJSON(u);   // data terenkripsi: fetch -> dekripsi AES-GCM
  const tg=kd||bk;if(kd)batasHa=kd.features.reduce((t,f)=>t+(+f.properties.LuasHa||0),0);
  window.TARGET={basis:TARGET_BASIS,ha:batasHa,label:TARGET_BASIS==='status_lahan'?'Target = luas kebun DNP (union Status Lahan DNP, '+fmtN(batasHa,2)+' ha)':'Target = luas Batas Kebun DNP ('+fmtN(batasHa,2)+' ha)'};
  const P=d.features.map(f=>f.properties);
- ['1','0'].filter(c=>P.some(p=>p.Code==c)).forEach(c=>$('fCode').add(new Option(codeLbl(c),c)));
- [['fPeng','Pengerjaan'],['fOp','Operator']].forEach(([id,k])=>[...new Set(P.map(p=>v(p[k])))].sort().forEach(x=>$(id).add(new Option(x,x))));
- const ds=P.map(p=>p.Tanggal).filter(Boolean).sort();['fFrom','fTo'].forEach(i=>{$(i).min=ds[0];$(i).max=ds[ds.length-1]});
+ [['fPeng','Pengerjaan'],['fOp','Operator']].forEach(([id,k])=>{if($(id))[...new Set(P.map(p=>v(p[k])))].sort().forEach(x=>$(id).add(new Option(x,x)))});
+ const ds=P.map(p=>p.Tanggal).filter(Boolean).sort();
+ if(window.DateRange&&$('fDateHost'))DateRange.mount($('fDateHost'),{variant:'lc'});
  // Header: periode & update terakhir dari Tanggal maksimum
  const last=ds[ds.length-1];
  if(last){const[y,m]=last.split('-');$('periode').textContent=`Periode: ${BLN_FULL[m-1]} ${y}`;$('lastUpd').textContent=tglFull(last);window.KPIV=Object.assign(window.KPIV||{},{octL:`LC ${BLN_FULL[m-1]} ${y}`})}
@@ -108,8 +114,9 @@ const getJ=u=>Vault.getJSON(u);   // data terenkripsi: fetch -> dekripsi AES-GCM
    return[src+'.'+k,String(x).trim()];
   })};
  northCtl.addTo(map);
- FIDS.forEach(i=>$(i).onchange=render);
- $('reset').onclick=()=>{FIDS.forEach(i=>$(i).value='');render()};
+ FIDS.forEach(i=>{const e=$(i);if(e)e.onchange=render});
+ if(window.DateRange)DateRange.onChange(()=>{if(window.data||typeof data!=='undefined')try{render()}catch(e){}});
+ $('reset').onclick=()=>{FIDS.forEach(i=>{const e=$(i);if(e)e.value=''});if(window.DateRange)DateRange.clearRange();else render()};
  if(window.Analytics)Analytics.init({map,bk:tg,bkReal:bk,bl,data,batasHa,blokLayer:blok,layersCtl:window.layersCtl});
  render();window.APP_OK=true}).catch(e=>{console.error(e);$('summary').innerHTML='<div class="note">Data gagal dimuat. Muat ulang halaman.</div>'});
 

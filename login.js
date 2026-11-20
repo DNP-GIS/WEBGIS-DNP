@@ -7,7 +7,7 @@
 // disimpan di sessionStorage.
 (function(){
 'use strict';
-const VER='202611202300',ITER_DUMMY=600000,THROTTLE_KEY='dnp_f';
+const VER='202611210100',ITER_DUMMY=600000,THROTTLE_KEY='dnp_f';
 const MSG_BAD='User atau password salah';
 const te=new TextEncoder();
 const $=id=>document.getElementById(id);
@@ -79,7 +79,7 @@ function applyLock(){
 
 // ---------- UI login ----------
 const form=$('loginForm'),msg=$('lgMsg');let busy=false;
-const SCRIPTS=['atlas_cfg.js','p17_cfg.js','js/basemap_cfg.js','js/basemap.js','js/symbology_date.js','app.js','analytics.js','atlas.js','kegiatan.js','locate.js','layout.js'];
+const SCRIPTS=['atlas_cfg.js','p17_cfg.js','js/basemap_cfg.js','js/basemap.js','js/daterange.js','js/kpi_tanggal.js','js/symbology_date.js','app.js','analytics.js','atlas.js','kegiatan.js','locate.js','layout.js'];
 let extrasDone;window.EXTRAS_READY=new Promise(r=>extrasDone=r);   // app.js menunggu analytics.js & locate.js agar hook Analytics tersedia saat data tiba
 function loadScripts(){return SCRIPTS.reduce((p,s)=>p.then(()=>new Promise((res,rej)=>{const e=document.createElement('script');e.src=s+'?v='+VER;e.onload=res;e.onerror=()=>rej(new Error('Gagal memuat '+s));document.head.appendChild(e)})),Promise.resolve())}
 function showMsg(t,cls){msg.textContent=t;msg.className='lg-msg '+(cls||'')}

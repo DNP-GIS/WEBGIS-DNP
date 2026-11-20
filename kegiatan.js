@@ -53,7 +53,18 @@ function figures(P){
   planRaw:dra.sum_mentah_ha,planN:dra.n,planNMentah:dra.n_mentah,planDelta:dra.delta_duplikat_ha,
   planDup:dra.duplikat,planned:da.tipe_berencana_ha,pctPlan:da.persen_tipe_berencana_dari_rencana,
   pctPlanAll:da.persen_semua_dari_rencana,vol:dr.volume_m3,planUnion:dr.rencana.union_ha,planTypes:dra.per_tipe});
+ applyWeek(F);return F}
+function weekBounds(){const DR=window.DateRange;return DR?DR.presetRange('minggu_ini'):{from:'',to:''}}
+function sumDates(map,from,to){let s=0;if(!map||!from||!to)return 0;for(const[t,v] of Object.entries(map)){if(t>=from&&t<=to)s+=+v||0}return s}
+function sumBefore(map,from){let s=0;if(!map||!from)return 0;for(const[t,v] of Object.entries(map)){if(t&&t<from)s+=+v||0}return s}
+function applyWeek(F){
+ const KT=window.KpiTanggal||{},w=weekBounds();
+ const set=(obj,key)=>{if(!obj)return;const m=KT[key]||{};obj.w1=sumDates(m,w.from,w.to);obj.w0=sumBefore(m,w.from)};
+ set(F.lc,'lc');set(F.rumpukan,'rumpukan');set(F.jalan,'jalan');set(F.drain,'drain');set(F.sto,'sto');
+ ['Stake Out','Lubang Tanam','Planting','OFF Planting'].forEach(c=>set(F[c],c));
  return F}
+K.applyWeek=applyWeek;
+K.refreshWeek=function(){if(!K.F)return;applyWeek(K.F);renderCards();try{renderRing()}catch(e){}};
 // ---- kartu ----
 const EYE='<svg viewBox="0 0 24 24" width="15" height="15"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/></svg>';
 function fmtTipe(pt){if(!pt||!Object.keys(pt).length)return'';return Object.entries(pt).map(([k,o])=>`${k} ${ha2(o.sum_ha)} (dalam ${ha2(o.dalam_ha)} / luar ${ha2(o.luar_ha)})`).join('; ')}
@@ -79,7 +90,7 @@ function cardData(a,F){const t=tgtLabel(),f=F[a.id];
     {k:'luar',lab:'Luar Batas Kebun',v:ha2(f.luar)+' ha',s:'tidak masuk persen target'}
    ]};}
  case'sto':{const top=Object.entries(f.per).sort((x,y)=>y[1]-x[1]).slice(0,3).map(([k,v])=>`${k} ${n0(v)}`).join(' · ');return{v:n0(f.real),u:'titik',pill:`+${n0(f.w1)}`,s3:top,s4:'Stake Out oleh surveyor · tanpa target (jumlah titik saja)'}}
- case'stakeout':{const o=F['Stake Out'],m=K.P.tanam.mentah||{};const tip=`Angka = titik unik setelah dedup 3 m. Mentah sumber: ${n0(m['Stake Out']||o.baris)} baris → ${n0(o.real)} unik.`;return{v:n0(o.real),u:'titik unik',pill:`+${n0(o.w1)}`,s3:`Hingga 7 Nov (Code 0): ${n0(o.w0)}`,s4:'Tahap titik tanam (berbeda dari STO) · tanpa target',tip}}
+ case'stakeout':{const o=F['Stake Out'],m=K.P.tanam.mentah||{};const tip=`Angka = titik unik setelah dedup 3 m. Mentah sumber: ${n0(m['Stake Out']||o.baris)} baris → ${n0(o.real)} unik.`;return{v:n0(o.real),u:'titik unik',pill:`+${n0(o.w1)}`,s3:`Sebelum minggu ini: ${n0(o.w0)}`,s4:'Tahap titik tanam (berbeda dari STO) · tanpa target',tip}}
  case'lubang':{const o=F['Lubang Tanam'],pb=K.P.tanam.per_blok,m=K.P.tanam.mentah||{},bl=Object.entries(pb).filter(([k,v])=>v['Lubang Tanam']>0).sort((x,y)=>y[1]['Lubang Tanam']-x[1]['Lubang Tanam']).map(([k,v])=>`Blok ${k}: ${n0(v['Lubang Tanam'])}`).join(' · ');
   const tip=`Angka = titik unik setelah dedup 3 m. Mentah sumber: ${n0(m['Lubang Tanam']||o.baris)} baris → ${n0(o.real)} unik.`;
   return{v:n0(o.real),u:'titik unik',pill:`+${n0(o.w1)}`,s3:`Tanpa tanggal: ${n0(o.und)} titik`,s4:bl||'Tanpa target',tip}}
@@ -102,12 +113,12 @@ function cardData(a,F){const t=tgtLabel(),f=F[a.id];
    subs:[{k:'rencana',lab:'Rencana Drain (Σ Shape_Area, dedup)',v:ha2(f.plan)+' ha',s:`Rencana Perimeter Drain berisi 2 poligon identik (OBJECTID 2 & 336); dihitung sekali; mentah ${ha2(f.planRaw)} ha`}]});}}}
 const SHORT={lc:'LC',rumpukan:'Rumpukan',sto:'STO',stakeout:'Stake Out',lubang:'Lubang',planting:'Planting',jalan:'Jalan',drain:'Drain'};
 function pctTxt(d){return d.bar!=null?nf(d.bar,1)+'%':''}
-function renderCards(){const F=K.F,host=$('actList')||$('kpis');if(!host)return;host.innerHTML=ACTS.map(a=>{const d=cardData(a,F);K.cards=K.cards||{};K.cards[a.id]=d;
+function renderCards(){const F=K.F,host=$('actList')||$('kpis');if(!host)return;const wrap=$('actDetailWrap');if(wrap&&host.contains(wrap))(host.parentNode||document.body).insertBefore(wrap,host.nextSibling);host.innerHTML=ACTS.map(a=>{const d=cardData(a,F);K.cards=K.cards||{};K.cards[a.id]=d;
  const pct=(!d.hidePctOnTotal)&&pctTxt(d);
  const subs=d.subs?`<div class="act-subs" title="${esc(d.tip||d.s3)}">${d.subs.map(x=>`<div class="ip" data-rp="${esc(x.k||'')}"><b>${esc(x.v)}</b><span>${esc(x.lab)}</span>${x.s?`<span class="sp">${esc(x.s)}</span>`:''}</div>`).join('')}</div>`:'';
  return `<article class="act${K.sel===a.id?' sel':''}" data-act="${a.id}" tabindex="0" role="button" aria-expanded="${K.sel===a.id}" aria-label="${esc(a.name)}: buka detail di panel kiri" style="--ac:${a.color}" ${d.tip?`title="${esc(d.tip)}"`:''}>
  <div class="act-h"><i class="act-dot"></i><b title="${esc(a.name)}">${esc(a.name)}</b><button type="button" class="act-eye" data-eye="${a.id}" aria-pressed="false" title="Tampilkan/sembunyikan layer ${esc(a.name)} di peta" aria-label="Layer peta ${esc(a.name)}">${EYE}</button></div>
- <div class="act-v"><span class="v">${d.v}</span><small>${d.u}</small>${pct?`<span class="pct">${pct}</span>`:''}<span class="pill" title="Minggu ini = Code 1 (data ${tg(K.P.meta.minggu_ini.tanggal)}); Hingga 7 Nov = Code 0">${d.pill}</span></div>
+ <div class="act-v"><span class="v">${d.v}</span><small>${d.u}</small>${pct?`<span class="pct">${pct}</span>`:''}<span class="pill" title="Minggu ini = Senin–Minggu minggu berjalan (zona Asia/Jakarta)">${d.pill}</span></div>
  ${subs}
  ${d.bar!=null&&d.barOnCard!==false?`<div class="kpi-prog"><div style="width:${Math.min(d.bar,100)}%"></div></div>`:''}
  </article>`}).join('');
@@ -149,15 +160,18 @@ function lyBox(a){const host=$('actLy');if(!host)return;
  host.innerHTML=`<div class="ly-hint">Toggle layer di peta untuk kegiatan ini</div>`+LYS.map(([id,lab])=>chk(id,lab,Atlas.st[id]?Atlas.isShown(id):false)).join('');
  host.querySelectorAll('[data-ly]').forEach(i=>i.onchange=()=>{Atlas.setVisible(i.dataset.ly,i.checked);syncEyes()})}
 
-// ---- Filter (blok, Code/minggu, tanggal; Rumpukan juga alat & operator, sama seperti LC) ----
+// ---- Filter (blok, rentang tanggal global, Rumpukan juga alat & operator) ----
 K.gflt={};
 const TANPA='tanpa data';
 function cleanVal(x){if(x==null||x===undefined)return TANPA;const s=String(x).trim();return s===''?TANPA:s}
 K.cleanVal=cleanVal;
-function fltOf(id){const o=K.gflt[id]||(K.gflt[id]={blok:'',code:'',from:'',to:'',peng:'',op:''});if(o.peng==null)o.peng='';if(o.op==null)o.op='';return o}
-function fltActive(f){return !!(f&&(f.blok||f.code||f.from||f.to||f.peng||f.op))}
+function fltOf(id){const o=K.gflt[id]||(K.gflt[id]={blok:'',peng:'',op:''});if(o.peng==null)o.peng='';if(o.op==null)o.op='';return o}
+function dateR(){const DR=window.DateRange;if(!DR)return{from:'',to:''};const r=DR.getRange();return{from:r.from||'',to:r.to||''}}
+function fltActive(f){const r=dateR();return !!(f&&(f.blok||f.peng||f.op||r.from||r.to))}
+function matchDate(p){const r=dateR(),tg0=p.Tanggal||'';if((r.from||r.to)&&!tg0)return false;if(r.from&&tg0<r.from)return false;if(r.to&&tg0>r.to)return false;return true}
+function matchFltBase(p,f){if(f.blok&&!blokSet(p).has(String(f.blok)))return false;if(f.peng&&cleanVal(p.Pengerjaan)!==f.peng)return false;if(f.op&&cleanVal(p.Operator)!==f.op)return false;return true}
 function blokSet(p){const out=new Set();const add=v=>{if(v==null||v==='')return;String(v).split(/[;,]/).forEach(x=>{x=String(x).trim();if(!x||x==='tanpa_No')return;out.add(x.replace(/^Blok\s*/i,''))})};add(p.Blok_utama);add(p.Blok_semua);add(p.No_Blok);add(p.Blok);add(p.Blok_sjoin);return out}
-function matchFlt(p,f){if(!fltActive(f))return true;if(f.blok&&!blokSet(p).has(String(f.blok)))return false;if(f.code&&String(p.Code)!=String(f.code))return false;if(f.peng&&cleanVal(p.Pengerjaan)!==f.peng)return false;if(f.op&&cleanVal(p.Operator)!==f.op)return false;const tg0=p.Tanggal||'';if((f.from||f.to)&&!tg0)return false;if(f.from&&tg0<f.from)return false;if(f.to&&tg0>f.to)return false;return true}
+function matchFlt(p,f){if(!f)f=fltOf((K.sel)||'');if(!fltActive(f))return true;return matchFltBase(p,f)&&matchDate(p)}
 function lyrIds(a){return (a.cat||a.id==='planting'||a.id==='stakeout'||a.id==='lubang')?['titik_tanam_realisasi']:a.layers.slice()}
 function isTanamAct(a){return !!(a&&(a.cat||a.id==='planting'||a.id==='stakeout'||a.id==='lubang'))}
 function catOf(p){return CATMAP[p.Name]||p.Name}
@@ -165,10 +179,10 @@ function pointPred(a){const f=fltOf(a.id);return p=>{if(isTanamAct(a)&&!tanamFlt
 function restoreLayer(id){const s=Atlas.st[id];if(!s||!Atlas.lay[id])return;if(Atlas.lay[id].fmt==='pts'){if(s.pts)Atlas.setPointFilter(id,tanamFlt)}else if(s.data&&s.data.features){const all=s.data.features;if(s.feats&&s.feats.length!==all.length)Atlas.setFeatures(id,all);else if(s.feats&&s.feats!==all)Atlas.setFeatures(id,all)}}
 function restoreAllLayers(){const seen=new Set(),SD=window.SymbologiTanggal;ACTS.forEach(a=>lyrIds(a).forEach(id=>{if(!seen.has(id)){seen.add(id);if(SD&&SD.handles(id))SD.clearLayerRange(id);restoreLayer(id)}}))}
 function applyMapFlt(a){if(!window.Atlas||!a)return;lyrIds(a).forEach(id=>{const s=Atlas.st[id],L=Atlas.lay[id];if(!s||!L)return;if(L.fmt==='pts'){if(s.pts)Atlas.setPointFilter(id,pointPred(a))}else if(s.data&&s.data.features){const f=fltOf(a.id),SD=window.SymbologiTanggal;
-  /* simbologi tanggal: rentang tanggal TIDAK membuang fitur dari peta; di luar rentang / tanpa rentang = arsir */
-  const sdOn=!!(SD&&SD.handles(id));if(sdOn)SD.setLayerRange(id,{from:f.from,to:f.to});
-  const g=sdOn?Object.assign({},f,{from:'',to:''}):f;
-  Atlas.setFeatures(id,fltActive(g)?s.data.features.filter(ft=>matchFlt(ft.properties,g)):s.data.features)}})}
+  /* simbologi tanggal: rentang global (DateRange) tidak membuang fitur; di luar rentang / tanpa rentang = arsir */
+  const sdOn=!!(SD&&SD.handles(id));if(sdOn)SD.clearLayerRange(id);
+  const local=!!(f.blok||f.peng||f.op);
+  Atlas.setFeatures(id,sdOn?(local?s.data.features.filter(ft=>matchFltBase(ft.properties,f)):s.data.features):(fltActive(f)?s.data.features.filter(ft=>matchFlt(ft.properties,f)):s.data.features))}})}
 function layerReady(id){const s=Atlas.st[id];return !!(s&&(s.pts||(s.data&&s.data.features)))}
 async function ensureAndApply(a,forceLoad){if(!window.Atlas||!a)return;const ids=lyrIds(a);const need=ids.filter(id=>!layerReady(id));if(need.length&&(forceLoad||fltActive(fltOf(a.id)))){await Promise.all(need.map(id=>((Atlas.ensure||(x=>Atlas.setVisible(x,true)))(id)).catch(()=>null)));need.forEach(id=>{if(Atlas.st[id]&&!Atlas.isShown(id))Atlas.setVisible(id,true)})}restoreAllLayers();applyMapFlt(a);syncEyes()}
 function featProps(id){const s=Atlas.st[id];if(!s)return null;if(s.pts){const o=[];for(let i=0;i<s.pts.n;i++)o.push(Atlas.rowProps(s.pts,i));return o}if(s.data&&s.data.features)return s.data.features.map(f=>f.properties);return null}
@@ -187,11 +201,10 @@ function genFilterUI(a){const f=fltOf(a.id);const seen=new Set();const bloks=[];
   <label>Operator<select id="gOp">${optList(ops,f.op,'Semua operator')}</select></label>`:'';
  return `<h3>${title} <span class="badge" id="gCount"${fltActive(f)?'':' hidden'}>Terfilter</span></h3>
  <div class="filters gen-filters" data-act="${a.id}">
-  <label>Blok<select id="gBlok">${opts.join('')}</select></label>
-  <label>Minggu pelaporan (Code)<select id="gCode"><option value="">Semua</option><option value="1"${f.code==='1'?' selected':''}>Code 1 (minggu ini)</option><option value="0"${f.code==='0'?' selected':''}>Code 0 (hingga 7 Nov)</option></select></label>${extra}
-  <div class="two"><label>Tanggal dari<input type="date" id="gFrom" value="${esc(f.from||'')}"></label><label>Tanggal sampai<input type="date" id="gTo" value="${esc(f.to||'')}"></label></div>
+  <label>Blok<select id="gBlok">${opts.join('')}</select></label>${extra}
+  <div id="gDateHost" class="dr-host"></div>
   <button type="button" id="gReset" class="btn-sec">Reset Filter</button>
-  <div class="ly-hint" id="gHint">Filter memotong tampilan peta, statistik, tabel per blok, dan recap di bawah. Angka KPI resmi di kartu/strip/hero tidak berubah. Nilai alat/operator kosong dibersihkan menjadi “tanpa data”. Rekaman tanpa tanggal dikecualikan bila rentang tanggal diisi.</div>
+  <div class="ly-hint" id="gHint">Filter memotong statistik; di luar rentang tanggal peta diarsir. KPI kartu tetap.</div>
  </div>`}
 function fltSummary(a){const f=fltOf(a.id);if(!fltActive(f))return'';const rows=filteredProps(a);if(!rows){return `<div class="flt-sum">Filter siap. <button type="button" id="gLoad">Muat layer &amp; terapkan di peta</button></div>`}
  const n=rows.length;const unit=a.unit==='ha'?'fitur':'titik';let extra='';
@@ -199,10 +212,11 @@ function fltSummary(a){const f=fltOf(a.id);if(!fltActive(f))return'';const rows=
  const per={};rows.forEach(p=>{const B=blokSet(p);if(!B.size){(per['(tanpa blok)']=(per['(tanpa blok)']||0)+1);return}B.forEach(b=>{if(!f.blok||String(b)===String(f.blok))per['Blok '+b]=(per['Blok '+b]||0)+1})});
  const top=Object.entries(per).sort((x,y)=>y[1]-x[1]).slice(0,8).map(([k,v])=>`${esc(k)} ${n0(v)}`).join(' · ');
  return `<div class="flt-sum">Hasil filter: <b>${n0(n)}</b> ${unit}${extra}.${top?`<br>${top}`:''}</div>`}
-function bindGen(a){const read=()=>{const f=fltOf(a.id);f.blok=$('gBlok')?$('gBlok').value:'';f.code=$('gCode')?$('gCode').value:'';f.from=$('gFrom')?$('gFrom').value:'';f.to=$('gTo')?$('gTo').value:'';f.peng=$('gPeng')?$('gPeng').value:'';f.op=$('gOp')?$('gOp').value:''};
+function bindGen(a){const read=()=>{const f=fltOf(a.id);f.blok=$('gBlok')?$('gBlok').value:'';f.peng=$('gPeng')?$('gPeng').value:'';f.op=$('gOp')?$('gOp').value:''};
  const run=()=>{read();ensureAndApply(a,true).then(()=>{genStats(a)})};
- ['gBlok','gCode','gFrom','gTo','gPeng','gOp'].forEach(id=>{const e=$(id);if(e)e.onchange=run});
- const rs=$('gReset');if(rs)rs.onclick=()=>{const f=fltOf(a.id);f.blok=f.code=f.from=f.to=f.peng=f.op='';restoreAllLayers();applyMapFlt(a);syncEyes();genStats(a)};
+ ['gBlok','gPeng','gOp'].forEach(id=>{const e=$(id);if(e)e.onchange=run});
+ if(window.DateRange&&$('gDateHost'))DateRange.mount($('gDateHost'),{variant:'kegiatan'});
+ const rs=$('gReset');if(rs)rs.onclick=()=>{const f=fltOf(a.id);f.blok=f.peng=f.op='';if(window.DateRange)DateRange.clearRange();restoreAllLayers();applyMapFlt(a);syncEyes();genStats(a)};
  const ld=$('gLoad');if(ld)ld.onclick=()=>ensureAndApply(a,true).then(()=>genStats(a))}
 function recapBy(rows,field){const tot=rows.reduce((s,p)=>s+(+p.Luas||0),0),g={};
  rows.forEach(p=>{const k=cleanVal(p[field]);if(!g[k])g[k]={k,ha:0,n:0};g[k].ha+=(+p.Luas||0);g[k].n++});
@@ -219,7 +233,7 @@ function rumpFilteredBlok(rows){
   const b=bk[r.no];const hasBk=b&&b.bk_blok>0.0005;const lab=b&&b.label?b.label:(r.no==='(tanpa blok)'?r.no:('Blok '+r.no));
   return{l:lab,v:r.ha,t:ha2(r.ha)+' ha',s:hasBk?n0(r.n)+' poligon':(r.no==='(tanpa blok)'?n0(r.n)+' poligon':'— · '+n0(r.n)+' poligon')}})
 }
-K.applyGenFlt=ensureAndApply;K.fltOf=fltOf;K.matchFlt=matchFlt;
+K.applyGenFlt=ensureAndApply;K.fltOf=fltOf;K.matchFlt=matchFlt;K.matchFltBase=matchFltBase;K.dateR=dateR;
 
 function genStats(a){const host=$('genTools');if(!host)return;if(!K.P){host.innerHTML='';return}
  const F=K.F,P=K.P;let html='';
@@ -232,14 +246,12 @@ function genStats(a){const host=$('genTools');if(!host)return;if(!K.P){host.inne
   const order=['Rumpukan','Maintenance Rumpukan','Timbun Rumpukan'];
   const komp=order.filter(k=>byName[k]).map(k=>{const o=byName[k],lab=k==='Rumpukan'?'Rumpukan (kelas)':(k.startsWith('Maintenance')?'Maintenance':'Timbun');
    return{l:lab,v:o.ha,t:ha2(o.ha)+' ha',s:n0(o.n)+' poligon'}});
-  const rp=recapBy(rows,'Pengerjaan'),ro=recapBy(rows,'Operator'),rc=recapBy(rows,'Code'),rt=recapBy(rows,'Tanggal');
+  const rp=recapBy(rows,'Pengerjaan'),ro=recapBy(rows,'Operator'),rt=recapBy(rows,'Tanggal');
   const tglRows=rt.rows.map(r=>({k:r.k==='tanpa data'?r.k:tg(r.k),ha:r.ha,n:r.n,share:r.share}));
-  const codeRows=rc.rows.map(r=>({k:r.k==='1'?'Code 1 (minggu ini)':r.k==='0'?'Code 0 (hingga 7 Nov)':('Code '+r.k),ha:r.ha,n:r.n,share:r.share}));
   html+=codeNote+`<div class="flt-sum" id="rRecapHead">${esc(tag)}: <b>${n0(rows.length)}</b> poligon · jumlah Luas <b>${ha2(rp.tot)} ha</b>. Recap memakai jumlah kolom Luas (semua kelas). KPI resmi di atas (Σ Luas ${ha2(F.rumpukan.real)} ha; dalam ${ha2(F.rumpukan.dalam)} ha = ${nf(F.rumpukan.pct,1)}% dari ${ha2(F.rumpukan.penyebut)} ha Batas Kebun) tidak terfilter.</div>
   <h3>Komposisi kelas <small>(${esc(tag)})</small></h3>`+(komp.length?barsMini(komp):'<div class="empty">Tidak ada data</div>')+
    `<h3 class="subh">Luas per Pengerjaan (Alat) <small>(ha, jumlah poligon, pangsa)</small></h3>`+recapBars(rp,'rPeng')+
    `<h3 class="subh">Luas per Operator <small>(ha, jumlah poligon, pangsa)</small></h3>`+recapBars(ro,'rOp')+
-   `<h3 class="subh">Luas per Code</h3>`+recapBars({tot:rc.tot,rows:codeRows},'rCode')+
    `<h3 class="subh">Luas per Tanggal</h3>`+recapBars({tot:rt.tot,rows:tglRows},'rTgl')+
    `<h3 class="subh">Per blok (12 teratas, ${esc(tag)}) · “—” bila tanpa Batas Kebun</h3>`+
    (on?barsMini(rumpFilteredBlok(rows)):topBlok('rumpukan_batas','rp_pct','ha'));
@@ -275,7 +287,7 @@ function renderDetail(){const wrap=$('actDetailWrap');if(!wrap)return;
  if(hero){const showPct=(!d.hidePctOnTotal)&&pct;
   const pairs=d.subs?`<div class="info-pairs" title="${esc(d.tip||'')}">${d.subs.map(x=>`<div class="ip" data-rp="${esc(x.k||'')}"><b>${esc(x.v)}</b><span>${esc(x.lab)}</span>${x.s?`<span class="sp">${esc(x.s)}</span>`:''}</div>`).join('')}</div>`:'';
   const extra=d.heroExtra?`<p class="hero-s2 rp-kelas">${esc(d.heroExtra)}</p>`:(a.id==='rumpukan'?`<p class="hero-s2 rp-kelas">Per kelas (Σ Luas): Rumpukan ${ha2(K.F.rumpukan.kelas)} ha (dalam ${ha2(K.F.rumpukan.kelasDalam)} / luar ${ha2(K.F.rumpukan.kelasLuar)}) · Maintenance ${ha2(K.F.rumpukan.maint)} ha · Timbun ${ha2(K.F.rumpukan.timbun)} ha</p>`:'');
-  hero.innerHTML=`<div class="hero-v"><span class="v">${d.v}</span><small>${d.u}</small>${showPct?`<span class="pct" style="font-weight:800;color:var(--g8)">${pct}</span>`:''}<span class="pill" title="Minggu ini = Code 1">${d.pill} minggu ini</span></div>
+  hero.innerHTML=`<div class="hero-v"><span class="v">${d.v}</span><small>${d.u}</small>${showPct?`<span class="pct" style="font-weight:800;color:var(--g8)">${pct}</span>`:''}<span class="pill" title="Minggu ini = Senin–Minggu minggu berjalan (zona Asia/Jakarta)">${d.pill} minggu ini</span></div>
   ${d.bar!=null&&d.barOnCard!==false?`<div class="kpi-prog"><div style="width:${Math.min(d.bar,100)}%"></div></div>`:''}
   <p class="hero-s">${esc(d.s3)}</p><p class="hero-s2">${esc(d.s4)}</p>
   ${pairs}${extra}
@@ -331,9 +343,9 @@ function ringRows(){const F=K.F,P=K.P,pc=v=>v==null?'–':nf(v,1)+'%';
  return r}
 function renderRing(){const pane=$('p-ring');if(!K.P){pane.innerHTML='<div class="empty" style="padding:16px">Memuat ringkasan kegiatan…</div>';return}
  const P=K.P,rows=ringRows();
- pane.innerHTML=`<div class="two-col wide-left"><div class="card"><div class="card-h"><h4>Ringkasan semua kegiatan <small>(klik baris = kurva kumulatif)</small></h4><div class="card-tools"><button class="btn-mini" id="csvRing">⭳ CSV</button></div></div><div class="tscroll"><table class="dt" id="ringT"><thead><tr><th>Kegiatan</th><th>Satuan</th><th class="n">Realisasi</th><th class="n" title="Code 1 = data ${tg(P.meta.minggu_ini.tanggal)}">Minggu ini</th><th class="n" title="Code 0 = hingga ${tg(P.meta.hingga.tanggal)}">Hingga 7 Nov</th><th>Tanpa tanggal</th><th>Target / rencana</th><th class="n">Capaian</th><th>Catatan</th></tr></thead><tbody>${rows.map(r=>`<tr data-act="${r.id}" class="${r.sub?'sub':''}${K.sel===r.id?' sel':''}" tabindex="0"><td><b>${esc(r.n)}</b></td><td>${r.u}</td><td class="n">${r.real}</td><td class="n">${r.w1}</td><td class="n">${r.w0}</td><td>${esc(r.und)}</td><td>${esc(r.tgt)}</td><td class="n">${r.cap}</td><td class="nt">${esc(r.note)}</td></tr>`).join('')}</tbody></table></div></div>
+ pane.innerHTML=`<div class="two-col wide-left"><div class="card"><div class="card-h"><h4>Ringkasan semua kegiatan <small>(klik baris = kurva kumulatif)</small></h4><div class="card-tools"><button class="btn-mini" id="csvRing">⭳ CSV</button></div></div><div class="tscroll"><table class="dt" id="ringT"><thead><tr><th>Kegiatan</th><th>Satuan</th><th class="n">Realisasi</th><th class="n" title="Senin–Minggu minggu berjalan, zona Asia/Jakarta">Minggu ini</th><th class="n" title="Bertanggal sebelum Senin minggu berjalan">Sebelum minggu ini</th><th>Tanpa tanggal</th><th>Target / rencana</th><th class="n">Capaian</th><th>Catatan</th></tr></thead><tbody>${rows.map(r=>`<tr data-act="${r.id}" class="${r.sub?'sub':''}${K.sel===r.id?' sel':''}" tabindex="0"><td><b>${esc(r.n)}</b></td><td>${r.u}</td><td class="n">${r.real}</td><td class="n">${r.w1}</td><td class="n">${r.w0}</td><td>${esc(r.und)}</td><td>${esc(r.tgt)}</td><td class="n">${r.cap}</td><td class="nt">${esc(r.note)}</td></tr>`).join('')}</tbody></table></div></div>
  <div class="card side-card"><div class="card-h"><h4>Definisi &amp; catatan data</h4></div><div class="pbody notes">
-  <p><b>Minggu ini</b> = Code 1 (data ${tg(P.meta.minggu_ini.tanggal)}); <b>Hingga 7 Nov</b> = Code 0. Code adalah penanda minggu pelaporan dari data, bukan diturunkan dari tanggal. Tanggal data terbaru: <b>${tg(P.meta.tanggal_data)}</b>.</p>
+  <p><b>Minggu ini</b> = Senin–Minggu minggu berjalan (zona Asia/Jakarta), dihitung dari kolom Tanggal — bukan field Code. <b>Sebelum minggu ini</b> = rekaman bertanggal sebelum Senin minggu ini. Tanggal data terbaru: <b>${tg(P.meta.tanggal_data)}</b>.</p>
   <p><b>${esc(tgtLabel())}.</b> Persen LC = luas union (tanpa hitung ganda) yang berada <i>di dalam</i> Batas Kebun ÷ luas Batas Kebun, dihitung di UTM 48S; luas LC di luar Batas Kebun hanya info. Rumpukan: angka utama = Σ kolom Luas semua kelas (Rumpukan, Maintenance, Timbun), termasuk di luar Batas Kebun; persen = luas di dalam Batas Kebun (proporsi clip geometri, bukan union) ÷ luas Batas Kebun (288,66 ha) — bukan dari angka total yang mencakup luar kebun. Dalam + luar = total.</p>
   <p>Jalan &amp; Drain dibandingkan dengan rencananya sendiri (luas poligon, bukan panjang; tipe yang punya rencana). STO = Stake Out oleh surveyor (tanpa target, jumlah titik saja).</p>
   <p>Titik tanam: hanya angka realisasi (titik unik). Titik “Plan Titik Tanam” dalam layer Realisasi Titik Tanam (${n0(P.tanam.rencana_referensi_unik)} titik) = informasi saja, bukan target; tidak ada persentase capaian.</p>
@@ -401,11 +413,11 @@ function renderPB(){const pane=$('p-pb');if(!K.P){pane.innerHTML='<div class="em
 A.TABS.ring=renderRing;A.TABS.kurva=renderKurva;A.TABS.pb=renderPB;
 function boot(){
  if(!A.ready){setTimeout(boot,120);return}
- Vault.getJSON('data/progres.json?v=202611202300').then(P=>{K.P=P;K.F=figures(P);
+ Vault.getJSON('data/progres.json?v=202611210100').then(P=>{K.P=P;K.F=figures(P);
   renderCards();A.renderTab();
   const d=P.meta.tanggal_data,[y,m]=d.split('-');const per=$('periode'),up=$('lastUpd');
   if(per)per.textContent=`Periode: ${['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'][m-1]} ${y}`;if(up)up.textContent=tg(d).replace(/ (\w+) /,(a,b)=>' '+['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'][BLN.indexOf(b)]+' ');
-  K.ready=true;document.dispatchEvent(new CustomEvent('kegiatan:ready'))}).catch(e=>{console.warn('progres gagal',e);($('actList')||$('kpis')).innerHTML='<div class="note" style="padding:12px">Ringkasan kegiatan gagal dimuat. Muat ulang halaman.</div>'})}
+  if(window.DateRange&&!K._drBound){K._drBound=true;DateRange.onChange(()=>{K.refreshWeek();const a=ACT[K.sel];if(a)ensureAndApply(a,false).then(()=>genStats(a))})}K.ready=true;document.dispatchEvent(new CustomEvent('kegiatan:ready'))}).catch(e=>{console.warn('progres gagal',e);($('actList')||$('kpis')).innerHTML='<div class="note" style="padding:12px">Ringkasan kegiatan gagal dimuat. Muat ulang halaman.</div>'})}
 document.addEventListener('click',e=>{const eye=e.target.closest('.act-eye');if(eye){e.stopPropagation();toggleEye(eye.dataset.eye);return}
  if(e.target.closest('.info')&&e.target.closest('.strip-item')){e.stopPropagation();return}
  const c=e.target.closest('.act, .strip-item');if(c&&c.dataset.act&&(c.closest('#actList')||c.closest('#strip'))){openAct(c.dataset.act,!!c.closest('#actList'))}});

@@ -229,7 +229,7 @@ function bindLegend(lg){
  lg.addEventListener('input',e=>{const t=e.target;if(t.classList.contains('lg-op')||t.dataset.op){setOpacity(t.dataset.op,t.value/100);t.title='Opasitas '+t.value+'%'}})}
 function legendInit(){const lg=document.querySelector('.legend');if(!lg||document.getElementById('lgAtlas'))return;
  const old=document.getElementById('lgBatas');if(old){const r=old.closest('.lg-row');const nx=r&&r.nextElementSibling;r&&r.remove();if(nx&&/Blok Kebun/.test(nx.textContent))nx.remove()}
- const SD=SDm();if(SD){SD.ensurePatterns();const sh=document.createElement('div');sh.id='sdHost';sh.className='lg-sd';lg.appendChild(sh);SD.mountControl(sh);SD.attach(A)}
+ const SD=SDm();if(SD){SD.ensurePatterns();const sh=document.createElement('div');sh.id='sdHost';sh.className='lg-sd';lg.appendChild(sh);if(window.DateRange)DateRange.mount(sh,{variant:'legend',sumId:'sdSum'});else SD.mountControl(sh);SD.attach(A)}
  const h=document.createElement('div');h.id='lgAtlas';h.className='lg-atlas';h.hidden=true;lg.appendChild(h);
  const t=lg.querySelector('.lg-title');
  if(t&&!t.querySelector('.lg-tg')){const b=document.createElement('button');b.type='button';b.className='lg-tg';b.setAttribute('aria-label','Ciutkan/perluas legenda');b.innerHTML=ICO.car;t.appendChild(b);
