@@ -12,5 +12,12 @@
   "iter": 600000,
   "iv": "mkXJpberyF0+ESfS",
   "wrappedDEK": "mhOgqygqdhU3155dtTGQdTYzN8Qvo8wW99YGquad/Sc4lR9Xdgnsb3IZaCdrFtAE"
+ },
+ {
+  "user": "dnpmgt",
+  "salt": "rL+pklc1Y5fxuVUNOgzh8w==",
+  "iter": 600000,
+  "iv": "wUCGIdjy8Rg56qSv",
+  "wrappedDEK": "F0zXLxBn4HzkkH7DPIVMpSSVis7oxPSPtZdHZz6NKkXtKr6fFtTY/GJBPA0ofv/4"
  }
 ]

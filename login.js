@@ -8,7 +8,7 @@
 // Penghitung throttling gagal-login disimpan di sessionStorage (dnp_f).
 (function(){
 'use strict';
-const VER='202611210600',ITER_DUMMY=600000,THROTTLE_KEY='dnp_f';
+const VER='202611210800',ITER_DUMMY=600000,THROTTLE_KEY='dnp_f';
 const MSG_BAD='User atau password salah';
 const te=new TextEncoder();
 const $=id=>document.getElementById(id);
